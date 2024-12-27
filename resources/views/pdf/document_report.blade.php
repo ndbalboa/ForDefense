@@ -97,7 +97,7 @@
                     <td>{{ $index + 1 }}</td>
                     <td>{{ $document['destination'] }}</td>
                     <td>{{ $document['subject'] }}</td>
-                    <td>{{ $document['from_date'] }} - {{ $document['to_date'] }}</td>
+                    <td>{{ $document['inclusive_date'] }}</td>
                     <td>{{ $document['venue'] }}</td>
                     <td>
                         @if (is_array($document['employee_names']))

@@ -76,16 +76,20 @@ import COACircular from '../components/admin/documents/COACircular.vue';
 import NoticeofMeeting from '../components/admin/documents/NoticeofMeeting.vue';
 import AllDocuments from '../components/admin/documents/OtherDocuments.vue';
 
-import SecPageBudgetCircular from '../components/admin/documents/BudgetCircular.vue';
-import SecPageCHEDCircular from '../components/admin/documents/CHEDCircular.vue';
-import SecPageCOACircular from '../components/admin/documents/COACircular.vue';
-import SecPageNoticeofMeeting from '../components/admin/documents/NoticeofMeeting.vue';
 import SecPageAllDocuments from '../components/admin/documents/OtherDocuments.vue';
 
 import DepartmentAccounts from '../components/admin/employees/DepartmentAccounts.vue';
 import DocumentByUnit from '../components/admin/documents/DocumentByUnit.vue';
 import DepartmentAutoFill from '../components/department/DepartmentAutoFill.vue';
 import DepartmentScanDocument from '../components/department/DepartmentScanDocument.vue';
+import DepartmentAccount from '../components/department/DepartmentAccount.vue';
+import Credentials from '../components/admin/employees/Credentials.vue';
+import SecPageOtherDocs from '../components/secretary/SecPageOtherDocs.vue';
+import SecPageNoticeOfMeeting from '../components/secretary/SecPageNoticeOfMeeting.vue';
+import SecPageCOA from '../components/secretary/SecPageCOA.vue';
+import SecPageBudgetCircular from '../components/secretary/SecPageBudgetCircular.vue';
+import SecPageChed from '../components/secretary/SecPageChed.vue';
+import DepartmentDocumentDetails from '../components/department/DepartmentDocumentDetails.vue';
 
 function isAuthenticated() {
   return !!localStorage.getItem('token');
@@ -112,7 +116,7 @@ const routes = [
     children: [
       { path: '', component: AdminDashboard },
       { path: 'upload-document', component: UploadDocument },
-      { path: 'scan-document', component: ScanDocument },
+      { path: 'scan-document', name: 'ScanDocument', component: ScanDocument },
       { path: 'autofill', name: 'Autofill', component: AutoFill, props: true },
       { path: 'search-document', component: SearchDocument },
       { path: 'documentbyunit', component: DocumentByUnit},
@@ -121,7 +125,7 @@ const routes = [
       { path: 'documents/special-order', component: DocumentsSpecialOrder },
       { path: 'adddocumenttype', component: AddDocumentType},
       { path: 'documents/:id', name: 'DocumentDetails', component: DocumentDetails},
-      { path: 'documents/:id', name: 'TravelOrderDocDetails', component: TravelOrderDocDetails},
+      { path: 'documents/travel/:id', name: 'TravelOrderDocDetails', component: TravelOrderDocDetails},
       { path: 'employee/add', component: AddNewEmployee },
       { path: 'employee/list', name: 'EmployeeList', component: ListOfEmployee },
       { path: 'employee/deactivated', component: DeactivatedEmployees },
@@ -145,13 +149,13 @@ const routes = [
       { path: 'documents/coa-circular', component: COACircular},
       { path: 'documents/notice-of-meeting', component: NoticeofMeeting},
       { path: 'documents/others', component: AllDocuments},
-      { path: 'departmentaccounts', component: DepartmentAccounts}
+      { path: 'departmentaccounts', component: DepartmentAccounts},
+      { path: 'credentials', component: Credentials}
 
 
     ],
   },
 
-  // Secretary Dashboard routes
   {
     path: '/secretary-dashboard',
     component: SecretaryLayout,
@@ -164,13 +168,19 @@ const routes = [
     children: [
       { path: '', component: SecretaryDashboard },
       { path: 'upload-document', component: SecPageUploadDocument },
-      { path: 'scan-document', component: SecPageScanDocument },
+      { path: 'scan-document', name: 'SecretaryScanDocument', component: SecPageScanDocument },
       { path: 'autofill', name: 'SecPageAutofill', component: SecPageAutoFill, props: true },
       { path: 'search-document', component: SecPageSearchDocument },
       { path: 'documents/travel-order', component: SecPageDocumentsTravelOrder },
       { path: 'documents/office-order', component: SecPageDocumentsOfficeOrder },
       { path: 'documents/special-order', component: SecPageDocumentsSpecialOrder },
+      { path: 'documents/budget-circular', component: SecPageBudgetCircular},
+      { path: 'documents/ched-circular', component: SecPageChed},
+      { path: 'documents/coa-circular', component: SecPageCOA},
+      { path: 'documents/notice-of-meeting', component: SecPageNoticeOfMeeting},
+      { path: 'documents/all', component: SecPageOtherDocs},
       { path: 'documents/:id', name: 'SecPageDocumentDetails', component: SecPageDocumentDetails},
+      { path: 'documents/travel/:id', name: 'SecPageTravelOrderDocDetails', component: TravelOrderDocDetails},
       { path: 'employee/add', component: SecPageAddNewEmployee },
       { path: 'employee/list', name:'SecPageEmployeeList', component: SecPageListOfEmployee },
       { path: 'employee/deactivated', component: SecPageDeactivatedEmployees },
@@ -187,15 +197,12 @@ const routes = [
       { path: 'mail/new', component: SecPageNewMail },
       { path: 'adddocumenttype', component: SecPageAddDocumentType},
       { path: 'settings', component: Settings },
-      { path: 'documents/budget-circular', component: SecPageBudgetCircular},
-      { path: 'documents/ched-circular', component: SecPageCHEDCircular},
-      { path: 'documents/coa-circular', component: SecPageCOACircular},
-      { path: 'documents/notice-of-meeting', component: SecPageNoticeofMeeting},
       { path: 'documents/others', component: SecPageAllDocuments},
+      { path: 'credentials', component: Credentials}
       
     ],
   },
-    // Secretary Dashboard routes
+
     {
       path: '/department-dashboard',
       component: DepartmentLayout,
@@ -211,17 +218,16 @@ const routes = [
         { path: 'department/documents/special-order', component: DepartmentSpecial },
         { path: 'department/documents/office-order', component: DepartmentOffice },
         { path: 'department/documents/others', component: DepartmentOtherDocuments },
-        { path: 'scan-document', component: DepartmentScanDocument },
-        { path: 'autofill', name: 'DepartmentAutofill', component: AutoFill, props: true },
-        { path: 'documents/:id', name: 'DepartmentDocumentDetails', component: DocumentDetails},
+        { path: 'scan-document', name: 'DepartmentScanDocument', component: DepartmentScanDocument },
+        { path: 'autofill', name: 'DepartmentAutofill', component: DepartmentAutoFill, props: true },
+        { path: 'documents/:id', name: 'DepartmentDocumentDetails', component: DepartmentDocumentDetails},
         { path: 'mail/list', component: MailList },
         { path: 'mail/new', component: NewMail },
-        { path: 'settings', component: Settings },
+        { path: 'departmentaccount', component: DepartmentAccount },
         
       ],
     },
 
-  // User Dashboard routes
   {
     path: '/user-dashboard',
     component: UserLayout,
@@ -239,8 +245,8 @@ const routes = [
       { path: 'documents/office-order', component: UserOfficeOrder },
       { path: 'documents/special-order', component: UserSpecialOrder },
       { path: 'documents/others', component: OtherDocuments },
-      { path: 'user-profile', component: UserProfile }, // User profile view and edit
-      { path: 'settings/change-credentials', component: ChangeCredentials }, // Change credentials option
+      { path: 'user-profile', component: UserProfile }, 
+      { path: 'settings/change-credentials', component: ChangeCredentials }, 
     ],
   },
 ];
@@ -250,7 +256,6 @@ const router = createRouter({
   routes,
 });
 
-// Global route guard to check authentication for routes that require it
 router.beforeEach((to, from, next) => {
   if (to.matched.some(record => record.meta.requiresAuth)) {
     if (!isAuthenticated()) {

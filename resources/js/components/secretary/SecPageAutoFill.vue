@@ -67,12 +67,12 @@
             <input type="date" v-model="document.date_issued" />
           </div>
           <div class="form-group">
-            <label>From:</label>
-            <input type="text" v-model="document.from_date" />
+            <label>Inclusive Date:</label>
+            <input type="text" v-model="document.inclusive_date" />
           </div>
           <div class="form-group">
-            <label>To:</label>
-            <input type="text" v-model="document.to_date" />
+            <label>From:</label>
+            <input type="text" v-model="document.sender" />
           </div>
           <div class="form-group">
             <label>Subject:</label>
@@ -94,18 +94,29 @@
           <!-- Employee Names Section -->
           <div class="form-group">
             <label>Employee Names:</label>
-            <transition-group name="fade" tag="div">
-              <div v-for="(employee, index) in document.employee_names" :key="index" class="employee-group">
-                <input type="text" v-model="document.employee_names[index]" />
-                <button type="button" class="btn-remove" @click="removeEmployee(index)">
-                  <i class="fas fa-trash-alt"></i> Remove
-                </button>
-              </div>
-            </transition-group>
+            <div class="employee-names-container">
+              <transition-group name="fade" tag="div">
+                <div
+                  v-for="(employee, index) in document.employee_names"
+                  :key="index"
+                  class="employee-group"
+                >
+                  <input type="text" v-model="document.employee_names[index]" />
+                  <button
+                    type="button"
+                    class="btn-remove"
+                    @click="removeEmployee(index)"
+                  >
+                    <i class="fas fa-trash-alt"></i> Remove
+                  </button>
+                </div>
+              </transition-group>
+            </div>
             <button type="button" class="btn-add" @click="addEmployee">
-                <i class="fas fa-plus"></i> Add Employee
+              <i class="fas fa-plus"></i> Add Employee
             </button>
           </div>
+
         </div>
 
         <button type="submit" class="btn-submit">Save</button>
@@ -138,32 +149,32 @@ export default {
   data() {
     return {
       document: {
-        file_path: "",  // File path from backend
+        file_path: "",  
         document_no: "",
         series_no: "",
         date_issued: "",
-        from_date: "",
-        to_date: "",
+        inclusive_date: "",
+        sender: "",
         subject: "",
         description: "",
         venue: "",
         destination: "",
-        document_type: "Travel Order", // Default document type
-        employee_names: [], // Array to store employee names
+        document_type: "Travel Order", 
+        employee_names: [],
       },
       errorMessage: null,
       successMessage: null,
     };
   },
   created() {
+    const base_url = import.meta.env.VITE_APP_URL; 
     const extractedData = localStorage.getItem("extractedData");
     if (extractedData) {
       try {
         this.document = JSON.parse(extractedData);
 
-        if (this.document.file_path && !this.document.file_path.startsWith('http://127.0.0.1:8000/')) {
-        // Prepend the base URL only if the file path doesn't already include it
-        this.document.file_path = `/storage/${this.document.file_path}`;
+        if (this.document.file_path && !this.document.file_path.startsWith(base_url)) {
+          this.document.file_path = `/storage/${this.document.file_path}`;
         }
 
         if (this.document.date_issued) {
@@ -177,6 +188,8 @@ export default {
         console.error("Error parsing extracted data from localStorage:", error);
       }
     }
+
+    axios.defaults.baseURL = base_url;
   },
   computed: {
     documentNumberLabel() {
@@ -196,7 +209,7 @@ export default {
         case "COA Circular":
           return "COA Circular Number";
         default:
-          return "Document Number"; // Fallback
+          return "Document Number";
       }
     },
     isDBMDocumentType() {
@@ -208,7 +221,6 @@ export default {
       return dbmTypes.includes(this.document.document_type);
     },
     isImageFile() {
-      // Check if the file is an image based on its file extension
       return /\.(jpg|jpeg|png|gif|bmp)$/i.test(this.document.file_path);
     },
   },
@@ -217,13 +229,11 @@ export default {
       try {
         this.clearMessages();
 
-        // Basic validation
         if (!this.document.document_type || !this.document.date_issued) {
           this.errorMessage = "Please ensure all required fields are filled.";
           return;
         }
 
-        // Validation specific to DBM documents
         if (this.isDBMDocumentType && (!this.document.subject || !this.document.description)) {
           this.errorMessage = "Subject and description are required for DBM documents.";
           return;
@@ -233,7 +243,12 @@ export default {
 
         if (response.data) {
           this.successMessage = "Document saved successfully.";
+          
           localStorage.removeItem("extractedData");
+
+          setTimeout(() => {
+            this.$router.push({ name: "SecretaryScanDocument" });
+          }, 2000);
         }
       } catch (error) {
         this.errorMessage = error.response?.data?.error || "Failed to save the document.";
@@ -270,6 +285,8 @@ export default {
   padding: 20px;
   border-radius: 8px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  height: 600px; 
+  overflow-y: auto; 
 }
 
 .document-preview {
@@ -278,6 +295,27 @@ export default {
   padding: 20px;
   border-radius: 8px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.employee-names-container {
+  max-height: 300px; 
+  overflow-y: auto; 
+  border: 1px solid #ccc; 
+  padding: 10px;
+  margin-bottom: 10px;
+  background-color: #fff; 
+  border-radius: 5px; 
+}
+
+.employee-group {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.employee-group input {
+  flex-grow: 1; 
+  margin-right: 10px;
 }
 
 .preview-container {
@@ -313,22 +351,72 @@ input[type="text"], textarea, select, input[type="date"] {
 
 button {
   cursor: pointer;
-  border: none;
+  border: 2px solid #414141; 
+  background-color: #efefef;
   border-radius: 4px;
   padding: 10px;
   font-size: 1rem;
 }
 
-.error, .success {
+button:hover {
+  background-color: #ff0000; 
+}
+
+.btn-remove {
+  color: white;
+  border: 2px solid #414141; 
+  background-color: #808080; 
+  padding: 5px 10px;
+  border-radius: 4px;
+}
+
+.btn-remove:hover {
+  background-color: #ff0000; 
+}
+
+.btn-add {
+  border: 2px solid #414141; 
+  background-color: #efefef; 
+  padding: 5px 10px;
+  border-radius: 4px;
   margin-top: 10px;
-  text-align: center;
+}
+
+.btn-add:hover {
+  background-color: #2b00ff; 
+}
+
+.success {
+  color: green;
 }
 
 .error {
   color: red;
 }
 
-.success {
-  color: green;
+.fas {
+  font-size: 16px;
+}
+
+.btn-submit {
+  font-size: 1rem;
+  padding: 12px;
+  border: 1px solid #ccc;
+  background-color: #efefef;
+  border-radius: 5px;
+  margin-top: 20px;
+}
+
+.btn-submit:hover {
+  background-color: #218838; 
+}
+
+.fad-enter-active, .fad-leave-active {
+  transition: opacity 1s;
+}
+
+.fad-enter, .fad-leave-to {
+  opacity: 0;
 }
 </style>
+

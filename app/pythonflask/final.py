@@ -14,41 +14,34 @@ load_dotenv()
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-# Initialize Flask app
 app = Flask(__name__)
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 def clean_extracted_text(text):
-    # Replace newline and carriage return characters with a space
     text = text.replace("\n", " ").replace("\r", " ")
-    
-    # Reduce multiple spaces to a single space
+
     text = re.sub(r'\s+', ' ', text)
     
-    # Remove invalid characters but preserve special Latin characters (e.g., Ñ, Á, É)
     text = re.sub(r'[^\w\s.,;:!?@#$%^&*()_+=\-/<>|~`"\'ÑñÁÉÍÓÚáéíóúÜüÇç]', '', text, flags=re.UNICODE)
     
-    # Common OCR character corrections
     corrections = {
         "0": "O", "1": "I", "|": "I", "l": "I", "rn": "m"
     }
     for wrong, correct in corrections.items():
         text = text.replace(wrong, correct)
     
-    # Remove footer patterns or irrelevant text
     footer_patterns = [
-        r'Page \d+ of \d+',  # Matches "Page X of Y"
-        r'^\s*\d+\s*$',      # Matches standalone numbers (e.g., page numbers)
-        r'Confidential\s*$', # Matches "Confidential" text
-        r'Footer:.*$'        # Matches "Footer: ..." text
+        r'Page \d+ of \d+',  
+        r'^\s*\d+\s*$',     
+        r'Confidential\s*$',
+        r'Footer:.*$'       
     ]
     for pattern in footer_patterns:
         text = re.sub(pattern, '', text, flags=re.IGNORECASE)
     
     return text.strip()
 
-# Image preprocessing for OCR enhancement
 def preprocess_image(image):
     gray = np.array(image.convert('L'))
     blurred = cv2.GaussianBlur(gray, (3, 3), 0)
@@ -61,28 +54,23 @@ def preprocess_image(image):
     denoised[edges == 255] = 0
     return Image.fromarray(denoised)
 
-# Extract text from a scanned PDF with OCR
 def extract_text_from_scanned_pdf(pdf_path):
     pages = convert_from_path(pdf_path, 150)
     text = ''
     for page_number, page in enumerate(pages, start=1):
         preprocessed_image = preprocess_image(page)
-        # Experiment with Tesseract's PSM and OEM options
         custom_config = r'--oem 3 --psm 3'
         text += pytesseract.image_to_string(preprocessed_image, config=custom_config)
     return text
 
-# Extract text from DOCX files
 def extract_text_from_docx(docx_path):
     document = Document(docx_path)
     text = '\n'.join([para.text for para in document.paragraphs])
     return text
 
-# Perform OCR on image files
 def extract_text_from_image(image_path):
     image = Image.open(image_path)
     preprocessed_image = preprocess_image(image)
-    # Experiment with Tesseract's PSM and OEM options
     custom_config = r'--oem 3 --psm 6'
     text = pytesseract.image_to_string(preprocessed_image, config=custom_config)
     return text
@@ -113,14 +101,14 @@ def extract_document_fields(cleaned_text):
     Extract the following fields from the text:
     document_no (only numbers)
     series_no (series year)
-    date_issued (date issued)
-    from_date (start of the event, inclusive date)
-    to_date (finish of the event, inclusive date)
+    date_issued (the date the document was issued)
+    inclusive_date (the date(s) when the event will be held)
     subject (purpose, Topic or focus)
     description (main body, Detailed explanation or summary provided)
     venue (place where the event to be held)
     destination (categorize into 'Regional', 'National', or 'International' based on Region VIII)
-    employee_names: [] (return as a list of strings with each name starts with Firstname then Lastname then start with an uppercase letter followed by lowercase letters, remove middle initials on names, remove titles like Ms, Mr, Dr, etc., don't include the sender )
+    sender (person who created the document, from:, Firstname then Lastname, remove middle initial)
+    employee_names: [] (a list of strings where each name starts with the First name followed by the Last name, both in title case (uppercase first letter followed by lowercase), remove middle initials and titles (e.g., Ms., Mr., Dr.) removed, and excluding the sender)
 
     If a field is missing, return "None" for that field.
 

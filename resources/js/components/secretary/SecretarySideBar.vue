@@ -62,8 +62,8 @@
               </router-link>
             </li>
             <li class="nav-item">
-              <router-link class="nav-link" to="/secretary-dashboard/documents/others">
-                <i class="bi bi-file-earmark-text me-2"></i> Others
+              <router-link class="nav-link" to="/secretary-dashboard/documents/all">
+                <i class="bi bi-file-earmark-text me-2"></i> All
               </router-link>
             </li>
           </ul>
@@ -167,8 +167,8 @@
               </router-link>
             </li>
             <li class="nav-item">
-              <router-link class="nav-link" to="secretary-dashboard/settings">
-                Settings
+              <router-link class="nav-link" to="/secretary-dashboard/credentials">
+                Credentials
               </router-link>
             </li>
           </ul>
@@ -212,22 +212,28 @@ export default {
       this.isReportsSubMenuOpen = !this.isReportsSubMenuOpen;
     },
     async confirmLogout() {
-  const confirmed = confirm('Are you sure you want to logout?');
-  if (confirmed) {
-    try {
-      await axios.post('/api/logout', {}, { withCredentials: true });
-      this.$router.push('/');
-    } catch (error) {
-      console.error('Logout failed:', error.response ? error.response.data : error.message);
-      alert('Logout failed: ' + (error.response ? error.response.data.message : 'Server error'));
+    const confirmed = confirm('Are you sure you want to logout?');
+    if (confirmed) {
+      try {
+        await axios.post('/api/logout', {}, { withCredentials: true });
+        
+        // Remove the token from localStorage or sessionStorage after logging out
+        localStorage.removeItem('token');
+        sessionStorage.removeItem('token');
+        
+        // Redirect to login page or home page
+        this.$router.push('/');
+      } catch (error) {
+        console.error('Logout failed:', error.response ? error.response.data : error.message);
+        alert('Logout failed: ' + (error.response ? error.response.data.message : 'Server error'));
+      }
     }
-  }
-},
+  },
 
   },
   mounted() {
-    // Optional: Set the Axios base URL for all requests
-    axios.defaults.baseURL = 'http://lnurecordsoffice.com'; // Adjust if necessary
+    const base_url = import.meta.env.VITE_APP_URL;
+    axios.defaults.baseURL = base_url; 
   }
 };
 </script>

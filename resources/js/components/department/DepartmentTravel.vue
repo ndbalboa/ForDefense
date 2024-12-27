@@ -68,15 +68,14 @@ import axios from "axios";
 export default {
   data() {
     return {
-      department: "", // To display the user's department
-      documents: [], // Full list of documents fetched from the server
-      searchQuery: "", // User's search query
-      currentPage: 1, // Current page for pagination
-      perPage: 5, // Number of results per page
+      department: "",
+      documents: [], 
+      searchQuery: "",
+      currentPage: 1, 
+      perPage: 5, 
     };
   },
   computed: {
-    // Filter documents based on the search query
     filteredDocuments() {
       const query = this.searchQuery.toLowerCase();
       return this.documents.filter(
@@ -88,17 +87,15 @@ export default {
           )
       );
     },
-    // Get paginated documents based on the current page
+
     paginatedDocuments() {
       const start = (this.currentPage - 1) * this.perPage;
       const end = start + this.perPage;
       return this.filteredDocuments.slice(start, end);
     },
-    // Calculate total number of pages
     totalPages() {
       return Math.ceil(this.filteredDocuments.length / this.perPage);
     },
-    // Dynamic pagination logic for displaying ellipses
     visiblePages() {
       const total = this.totalPages;
       const current = this.currentPage;
@@ -115,19 +112,17 @@ export default {
     },
   },
   mounted() {
-    // Fetch the department from the authenticated user
     axios
       .get("/api/user")
       .then((response) => {
         this.department = response.data.department;
-        this.fetchDocuments(1); // Fetch documents for Travel Orders (ID 1)
+        this.fetchDocuments(1);
       })
       .catch((error) => {
         console.error("Error fetching user data:", error.response.data);
       });
   },
   methods: {
-    // Fetch documents based on the selected document type
     async fetchDocuments(documentType) {
       try {
         const response = await axios.get("/api/department-documentstype", {
@@ -138,23 +133,19 @@ export default {
         console.error("Error fetching documents:", error);
       }
     },
-    // Redirect to document details page
     goToDocumentDetails(documentId) {
       this.$router.push({ name: "DepartmentDocumentDetails", params: { id: documentId } });
     },
-    // Set the page to the selected value
     setPage(page) {
       if (page !== "...") {
         this.currentPage = page;
       }
     },
-    // Go to the next page
     nextPage() {
       if (this.currentPage < this.totalPages) {
         this.currentPage++;
       }
     },
-    // Go to the previous page
     prevPage() {
       if (this.currentPage > 1) {
         this.currentPage--;
@@ -164,9 +155,7 @@ export default {
 };
 </script>
 
-
 <style scoped>
-/* Adjust table styling */
 table {
   margin-top: 15px;
   width: 100%;
@@ -178,23 +167,46 @@ td {
   padding: 10px;
   border: 1px solid #ddd;
   text-align: left;
+  max-height: 180px; 
+  max-width: 200px; 
+  overflow: hidden; 
+  text-overflow: ellipsis; 
+  white-space: nowrap; 
 }
 
 th {
-  background-color: navy; /* Navy blue background */
+  background-color: navy;
   color: white;
 }
 
-/* Container for search bar and top bar */
+th:nth-child(1),
+td:nth-child(1) {
+  width: 15%;
+}
+
+th:nth-child(2),
+td:nth-child(2) {
+  width: 30%; 
+}
+
+th:nth-child(3),
+td:nth-child(3) {
+  width: 40%; 
+}
+
+th:nth-child(4),
+td:nth-child(4) {
+  width: 15%; 
+}
+
 .search-and-top-bar {
   display: flex;
   flex-direction: column;
-  gap: 10px; /* Adds space between search bar and counter/pagination */
+  gap: 10px; 
 }
 
-/* Search bar styling */
 .search-bar-container {
-  align-self: flex-end; /* Align search bar to the right */
+  align-self: flex-end; 
   position: relative;
   width: 300px;
 }
@@ -209,25 +221,22 @@ th {
 
 .search-bar {
   width: 100%;
-  padding: 8px 12px 8px 30px; /* Add padding for icon */
+  padding: 8px 12px 8px 30px; 
   font-size: 14px;
   border: 1px solid #ddd;
   border-radius: 4px;
 }
 
-/* Top bar container for results and pagination */
 .top-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-/* Results Counter */
 .results-counter {
   font-size: 14px;
 }
 
-/* Pagination styling */
 .pagination {
   display: flex;
   align-items: center;
@@ -259,7 +268,6 @@ th {
   color: #888;
 }
 
-/* Style clickable rows */
 .clickable-row {
   cursor: pointer;
   transition: background-color 0.2s ease;
@@ -268,24 +276,6 @@ th {
 .clickable-row:hover {
   background-color: #f0f0f0;
 }
-th:nth-child(1),
-td:nth-child(1) {
-  width: 15%; /* Document No */
-}
 
-th:nth-child(2),
-td:nth-child(2) {
-  width: 30%; /* Subject */
-}
-
-th:nth-child(3),
-td:nth-child(3) {
-  width: 40%; /* Description */
-}
-
-th:nth-child(4),
-td:nth-child(4) {
-  width: 15%; /* Date Issued */
-}
 
 </style>

@@ -1,36 +1,40 @@
 <template>
   <h2>{{ document && document.document_type ? document.document_type.document_type : 'Travel Order' }}</h2>
+
+  <!-- Action Buttons Section -->
   <div v-if="document" class="action-buttons">
-    <button @click="viewFile" v-if="document.file_path" class="btn-primary">
-      <i class="fas fa-eye"></i> View File
-    </button>
-    <button v-if="!isEditing" @click="editDocument" class="btn-secondary">
-      <i class="fas fa-edit"></i> Edit Document
-    </button>
-    <button v-if="isEditing" @click="saveDocument" class="btn-primary">
-      <i class="fas fa-save"></i> Save Changes
-    </button>
-    <button @click="deleteDocument" class="btn-danger">
-      <i class="fas fa-trash"></i> Delete Document
-    </button>
+    <div class="buttons-container">
+      <button @click="viewFile" v-if="document.file_path" class="btn-primary">
+        <i class="fas fa-eye"></i> View File
+      </button>
+      <button v-if="!isEditing" @click="editDocument" class="btn-secondary">
+        <i class="fas fa-edit"></i> Edit Document
+      </button>
+      <button v-if="isEditing" @click="saveDocument" class="btn-primary">
+        <i class="fas fa-save"></i> Save Changes
+      </button>
+      <button @click="deleteDocument" class="btn-danger">
+        <i class="fas fa-trash"></i> Delete Document
+      </button>
+    </div>
   </div>
-  <div class="document-details-container">
-    <div v-if="document" class="document-details">
+
+  <!-- Document Details and Preview Section -->
+  <div class="document-container">
+    <!-- Document Details Section -->
+    <div class="document-details">
       <div class="details-grid">
         <label for="doc-no"><strong>Document No:</strong></label>
         <input id="doc-no" v-model="document.document_no" :disabled="!isEditing" />
 
         <label for="series-no"><strong>Series Year:</strong></label>
         <input id="series-no" v-model="document.series_no" :disabled="!isEditing" />
+       
+        <label for="date-issued"><strong>Date Issued:</strong></label>
+        <input id="date-issued" v-model="document.date_issued" :disabled="!isEditing" />
 
-        <div class="inclusive-date">
-          <label><strong>Inclusive Date:</strong></label>
-          <div class="date-range">
-            <input id="from-date" :value="formatDate(document.from_date)" :disabled="!isEditing" />
-            <span>to</span>
-            <input id="to-date" :value="formatDate(document.to_date)" :disabled="!isEditing" />
-          </div>
-        </div>
+        <label for="inclusive-date"><strong>Inclusive Date:</strong></label>
+        <input id="inclusive-date" v-model="document.inclusive_date" :disabled="!isEditing" />
 
         <label for="subject"><strong>Subject:</strong></label>
         <textarea 
@@ -50,8 +54,8 @@
           class="resizable-textarea"
         ></textarea>
 
-        <label for="date-issued"><strong>Date Issued:</strong></label>
-        <input id="date-issued" v-model="document.date_issued" :disabled="!isEditing" />
+        <label for="sender"><strong>From:</strong></label>
+        <input id="sender" v-model="document.sender" :disabled="!isEditing" />
 
         <label for="employee-names"><strong>Employee Names:</strong></label>
         <textarea 
@@ -64,15 +68,24 @@
       </div>
     </div>
 
-    <div v-else-if="error" class="error-message">
-      <p>{{ error }}</p>
+    <!-- Document Preview Section -->
+    <div class="document-preview">
+      <h3>Document Preview</h3>
+      <div class="preview-container">
+        <div v-if="isImageFile">
+          <img :src="getFileUrl(document.file_path)" alt="Document Image" width="100%" />
+        </div>
+        <div v-else>
+          <iframe 
+            :src="getFileUrl(document.file_path)"
+            width="100%"
+            height="500px"
+            frameborder="0"
+            title="Document Preview"
+          ></iframe>
+        </div>
+      </div>
     </div>
-
-    <div v-else>
-      <p>Loading document details...</p>
-    </div>
-
-    <button @click="goBack" class="btn-secondary">Go Back</button>
   </div>
 </template>
 
@@ -85,15 +98,17 @@ export default {
       document: null,
       error: null,
       isEditing: false,
-      appUrl: 'http://127.0.0.1:8000',
+      base_url: import.meta.env.VITE_APP_URL, 
     };
   },
   computed: {
-    // Format employee names as a string joined by newlines for display
     employeeNames() {
-      return this.document && this.document.employee_names 
-        ? this.document.employee_names.join('\n') 
+      return this.document && this.document.employee_names
+        ? this.document.employee_names.join('\n')
         : '';
+    },
+    isImageFile() {
+      return this.document && (this.document.file_path.endsWith('.jpg') || this.document.file_path.endsWith('.jpeg') || this.document.file_path.endsWith('.png'));
     },
   },
   methods: {
@@ -125,11 +140,10 @@ export default {
     },
     async saveDocument() {
       try {
-        // Convert employee names back into an array for saving
         const employeeNamesArray = this.employeeNames.split('\n').map(name => name.trim());
         this.document.employee_names = employeeNamesArray;
 
-        await axios.put(`/api/admin/documents/${this.document.id}`, this.document);
+        await axios.put(`/api/admin/documents/update/${this.document.id}`, this.document);
         alert('Document updated successfully.');
         this.isEditing = false;
       } catch (error) {
@@ -150,7 +164,7 @@ export default {
         console.error('File path is undefined');
         return '';
       }
-      return `${this.appUrl}${filePath}`;
+      return `${this.base_url}${filePath}`;
     },
     viewFile() {
       const fileUrl = this.getFileUrl(this.document.file_path);
@@ -158,14 +172,15 @@ export default {
         window.open(fileUrl, '_blank');
       } else {
         console.error('Cannot view file: URL is undefined');
+        alert('File is not available.');
       }
     },
     async deleteDocument() {
       if (confirm('Are you sure you want to delete this document?')) {
         try {
-          await axios.delete(`/api/admin/documents/${this.document.id}`);
+          await axios.delete(`/api/admin/delete/documents/${this.document.id}`);
           alert('Document deleted successfully.');
-          this.$router.push('/documents'); 
+          this.$router.push('/documents');
         } catch (error) {
           console.error('Error deleting document:', error);
           alert('Failed to delete document. Please try again later.');
@@ -173,9 +188,6 @@ export default {
       } else {
         alert('Document deletion canceled.');
       }
-    },
-    goBack() {
-      this.$router.go(-1);
     },
     autoResizeTextareas() {
       this.$nextTick(() => {
@@ -193,6 +205,7 @@ export default {
     },
   },
   mounted() {
+    axios.defaults.baseURL = this.base_url;
     this.fetchDocumentDetails();
   },
   watch: {
@@ -204,24 +217,22 @@ export default {
   },
 };
 </script>
+
 <style scoped>
-.document-details-container {
+.document-container {
+  display: flex;
+  gap: 20px;
+  justify-content: space-between;
   margin: 20px auto;
-  padding: 20px;
-  background-color: #ffffff;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  max-width: 720px;
-  position: relative;
 }
 
-.action-buttons {
-  margin-top: 115px;
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  display: flex;
-  gap: 10px;
+.document-details,
+.document-preview {
+  flex: 1;
+  background-color: #ffffff;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 h2 {
@@ -248,18 +259,18 @@ h2 {
   border-radius: 5px;
   border: 1px solid #ccc;
   background-color: #f9f9f9;
-  resize: none; 
+  resize: none;
 }
 
 .details-grid textarea {
-  height: auto; 
-  min-height: 40px; 
-  overflow: hidden; 
-  resize: vertical; /* Enable vertical resizing */
+  height: auto;
+  min-height: 40px;
+  overflow: hidden;
+  resize: vertical;
 }
 
 #description {
-  height: 200px; 
+  height: 200px;
 }
 
 .btn-primary,
@@ -308,23 +319,30 @@ h2 {
   grid-column: span 2;
   display: flex;
   align-items: center;
-  gap: 120px; 
+  gap: 120px;
 }
 
 .inclusive-date .date-range {
-  display: flex; 
-  align-items: center; 
-  gap: 5px; 
+  display: flex;
+  align-items: center;
+  gap: 5px;
 }
 
 .inclusive-date input {
-  width: auto; 
-  text-align: center; 
+  width: auto;
+}
+
+.preview-container {
+  overflow: hidden;
 }
 
 .resizable-textarea {
-  overflow: auto; 
-  resize: vertical; 
+  min-height: 50px;
 }
 
+.buttons-container {
+  display: flex;
+  justify-content: flex-end;
+  gap: 20px;  
+}
 </style>

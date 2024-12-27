@@ -88,10 +88,16 @@
             <tr v-for="document in paginatedDocuments" :key="document.id">
               <td>{{ document.destination }}</td>
               <td>{{ document.subject }}</td>
-              <td>{{ document.from_date }} &ndash; {{ document.to_date }}</td>
-              <td>{{ document.employee_names }}</td>
+              <td>{{ document.inclusive_date }}</td>
               <td>
-                <a :href="'/storage/' + document.file_path" class="btn btn-info" target="_blank">View</a>
+                <ul class="list-unstyled">
+                  <li v-for="(employee, index) in document.employee_names" :key="index">
+                    {{ employee }}
+                  </li>
+                </ul>
+              </td>
+              <td>
+                <a :href="document.file_path" class="btn btn-info" target="_blank">View</a>
               </td>
             </tr>
           </tbody>
@@ -100,6 +106,7 @@
     </div>
   </div>
 </template>
+
 
 <script>
 import axios from 'axios';
@@ -113,10 +120,10 @@ export default {
       errorMessage: '',
       reportGenerated: false,
       reportLink: '',
-      documents: [], // Stores the list of documents
-      employees: [], // Stores the list of employees
-      employee: '', // Selected employee for filtering
-      rowsPerPage: 10, // Rows per page for pagination
+      documents: [], 
+      employees: [], 
+      employee: '', 
+      rowsPerPage: 10, 
     };
   },
   computed: {
@@ -125,15 +132,12 @@ export default {
     },
   },
   methods: {
-    // Generate report and fetch documents for the date range
     async generateReport() {
-      // Validate if dates are selected
       if (!this.startDate || !this.endDate) {
         this.errorMessage = 'Please select both a start and end date.';
         return;
       }
 
-      // Validate if start date is before end date
       if (this.startDate > this.endDate) {
         this.errorMessage = 'The start date cannot be later than the end date.';
         return;
@@ -142,32 +146,29 @@ export default {
       this.isLoading = true;
       this.errorMessage = '';
       this.reportGenerated = false;
-      this.documents = []; // Clear the documents list before fetching
+      this.documents = []; 
 
       try {
-        // First, generate the report
         const reportResponse = await axios.post('/api/admin/generate-report', {
           upload_from_date: this.startDate,
           upload_to_date: this.endDate,
-          document_type: 'Travel Order', // Specify document type
+          document_type: 'Travel Order',
         });
 
         this.reportLink = reportResponse.data.file_path;
         this.reportGenerated = true;
 
-        // Then, fetch the documents for the same date range
         const documentsResponse = await axios.get('/api/admin/documentsbydaterange', {
           params: {
             upload_from_date: this.startDate,
             upload_to_date: this.endDate,
-            document_type: 'Travel Order', // Filter documents by type
-            employee: this.employee, // Filter documents by employee
+            document_type: 'Travel Order', 
+            employee: this.employee, 
           },
         });
 
-        this.documents = documentsResponse.data.documents; // Set the documents data
+        this.documents = documentsResponse.data.documents; 
       } catch (error) {
-        // Handle errors from the backend
         this.errorMessage = error.response?.data?.message || 'An error occurred while generating the report.';
       } finally {
         this.isLoading = false;
@@ -175,7 +176,6 @@ export default {
     },
   },
   async mounted() {
-    // Fetch employees for the dropdown when the component is mounted
     try {
       const response = await axios.get('/api/admin/employees');
       this.employees = response.data.employees;

@@ -12,7 +12,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        $middleware->statefulApi();
+        $middleware->statefulApi([
+            \App\Http\Middleware\PreventBrowserCache::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

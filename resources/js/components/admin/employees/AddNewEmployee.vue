@@ -117,8 +117,6 @@
     </div>
   </div>
 
-
-      <!-- Address and Profile Image -->
       <div class="row">
         <div class="col-md-6 mb-3">
           <h5>Permanent Address</h5>
@@ -196,6 +194,9 @@
       </div>
       <button type="submit" class="btn btn-primary">Add Employee</button>
     </form>
+    <div v-if="submitSuccess" class="mt-3 alert alert-success">
+        Employee has been successfully added!
+      </div>
   </div>
 </template>
 
@@ -244,9 +245,11 @@ export default {
       academicRanks: [],
       universityPositions: [],
       departments: [],
+      successMessage: '',
     };
   },
   methods: {
+    // Validate name fields
     validateName(field) {
       const nameRegex = /^[A-Za-zñÑṳṵ\s]+$/;
       if (!nameRegex.test(this.form[field])) {
@@ -255,6 +258,7 @@ export default {
         this.errors[field] = '';
       }
     },
+    // Auto-fill residential address based on permanent address
     autoFillResidentialAddress() {
       if (this.sameAddress) {
         this.form.residential_street = this.form.permanent_street;
@@ -272,6 +276,7 @@ export default {
         this.form.residential_zipcode = '';
       }
     },
+    // Fetch data for dropdowns dynamically from the API
     async fetchDropdownData() {
       try {
         const [ranksResponse, positionsResponse, departmentsResponse] = await Promise.all([
@@ -287,19 +292,19 @@ export default {
         console.error('Error fetching dropdown data:', error);
       }
     },
-    onFileChange(event) {
-      const file = event.target.files[0];
-      if (file) {
-        this.form.profileImage = file;
-      }
-    },
+    // Submit form data to the server
     submitForm() {
       const formData = new FormData();
       Object.keys(this.form).forEach(key => {
         formData.append(key, this.form[key]);
       });
 
-      this.$axios.post('/api/admin/employees', formData)
+      this.successMessage = 'Employee successfully added!';
+      setTimeout(() => {
+        this.successMessage = '';
+      }, 3000);
+
+      this.$axios.post('/api/admin/employees/add', formData)
         .then(response => {
           console.log('Employee added successfully', response.data);
           this.resetForm();
@@ -308,6 +313,7 @@ export default {
           console.error('Error adding employee:', error);
         });
     },
+    // Reset the form fields
     resetForm() {
       this.form = {
         lastName: '',
@@ -356,6 +362,7 @@ export default {
 </script>
 
 
+
 <style scoped>
 .container {
   max-width: 1000px;
@@ -368,13 +375,13 @@ export default {
 h2 {
   margin-left: 20px;
   margin-bottom: 5px;
-  color: #343a40; /* Darker text color for better readability */
+  color: #343a40; 
 }
 
 h4 {
   margin-top: 20px;
   margin-bottom: 15px;
-  color: #6c757d; /* Muted color for subheadings */
+  color: #6c757d; 
 }
 label {
   font-weight: 600;
@@ -382,56 +389,55 @@ label {
 
 .form-control {
   border-radius: 5px;
-  border: 1px solid #ced4da; /* Border color */
-  padding: 10px; /* Increased padding */
-  transition: border-color 0.3s; /* Smooth border color transition */
+  border: 1px solid #ced4da; 
+  padding: 10px; 
+  transition: border-color 0.3s; 
 }
 
 .form-control:focus {
-  border-color: #80bdff; /* Light blue border on focus */
-  box-shadow: 0 0 5px rgba(0, 123, 255, 0.5); /* Add subtle shadow */
+  border-color: #80bdff; 
+  box-shadow: 0 0 5px rgba(0, 123, 255, 0.5); 
 }
 
 .btn {
-  background-color: #007bff; /* Primary button color */
-  color: white; /* White text on button */
-  padding: 10px 15px; /* Button padding */
-  border: none; /* Remove default border */
-  border-radius: 5px; /* Rounded corners */
-  cursor: pointer; /* Pointer cursor on hover */
-  transition: background-color 0.3s; /* Smooth background color transition */
+  background-color: #007bff;
+  color: white; 
+  padding: 10px 15px; 
+  border: none; 
+  border-radius: 5px;
+  cursor: pointer; 
+  transition: background-color 0.3s; 
 }
 
 .btn:hover {
-  background-color: #0056b3; /* Darker blue on hover */
+  background-color: #0056b3; 
 }
 
 .text-danger {
-  font-size: 0.9rem; /* Slightly smaller error message font */
-  margin-top: 5px; /* Add space above error messages */
+  font-size: 0.9rem; 
+  margin-top: 5px; 
 }
 
 .row {
-  margin-bottom: 15px; /* Space between rows */
+  margin-bottom: 15px; 
 }
 .nrow {
-  margin-bottom: 0px; /* Space between rows */
+  margin-bottom: 0px;
 }
 
 .form-check {
   display: flex;
-  align-items: center; /* Center checkbox vertically */
+  align-items: center; 
 
 }
 
 .form-check-input {
-  margin-right: 10px; /* Space between checkbox and label */
+  margin-right: 10px;
 }
 
-/* Styling for the checkbox label */
 .form-check-label {
-  font-size: 12px; /* Set the desired font size */
-  font-family: 'Arial', sans-serif; /* Set the desired font family */
-  color: #333; /* Set the desired font color */
+  font-size: 12px; 
+  font-family: 'Arial', sans-serif;
+  color: #333; 
 }
 </style>

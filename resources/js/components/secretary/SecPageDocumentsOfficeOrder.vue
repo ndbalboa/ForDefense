@@ -54,11 +54,13 @@
           <td>{{ document.subject }}</td>
           <td>
             <ul>
-              <li v-for="(name, index) in document.employee_names" :key="index">
+              <li v-for="(name, index) in document.employee_names.slice(0, 5)" :key="index">
                 {{ name }}
               </li>
+              <li v-if="document.employee_names.length > 5">...</li>
             </ul>
           </td>
+
         </tr>
       </tbody>
     </table>
@@ -71,17 +73,20 @@ import axios from "axios";
 export default {
   data() {
     return {
-      documents: [], // Full list of documents fetched from the server
-      searchQuery: "", // User's search query
-      currentPage: 1, // Current page for pagination
-      perPage: 5, // Number of results per page
+      documents: [], 
+      searchQuery: "",
+      currentPage: 1,
+      perPage: 5, 
     };
   },
   computed: {
-    // Filter documents based on the search query
+  
+    sortedDocuments() {
+      return [...this.documents].sort((a, b) => new Date(b.date_issued) - new Date(a.date_issued));
+    },
     filteredDocuments() {
       const query = this.searchQuery.toLowerCase();
-      return this.documents.filter(
+      return this.sortedDocuments.filter(
         (document) =>
           document.document_no?.toLowerCase().includes(query) ||
           document.subject?.toLowerCase().includes(query) ||
@@ -90,17 +95,17 @@ export default {
           )
       );
     },
-    // Get paginated documents based on the current page
+
     paginatedDocuments() {
       const start = (this.currentPage - 1) * this.perPage;
       const end = start + this.perPage;
       return this.filteredDocuments.slice(start, end);
     },
-    // Calculate total number of pages
+ 
     totalPages() {
       return Math.ceil(this.filteredDocuments.length / this.perPage);
     },
-    // Dynamic pagination logic for displaying ellipses
+
     visiblePages() {
       const total = this.totalPages;
       const current = this.currentPage;
@@ -117,10 +122,10 @@ export default {
     },
   },
   mounted() {
-    this.fetchDocuments(3); // Fetch documents where document_type_id = 1 (Travel Order)
+    this.fetchDocuments(3);
   },
   methods: {
-    // Fetch documents from the API
+
     async fetchDocuments(documentTypeId) {
       try {
         const response = await axios.get(`/api/admin/list/documents/${documentTypeId}`);
@@ -129,25 +134,25 @@ export default {
         console.error("Error fetching documents:", error);
       }
     },
-    // Set the page to the selected value
+
     setPage(page) {
       if (page !== "...") {
         this.currentPage = page;
       }
     },
-    // Go to the next page
+
     nextPage() {
       if (this.currentPage < this.totalPages) {
         this.currentPage++;
       }
     },
-    // Go to the previous page
+
     prevPage() {
       if (this.currentPage > 1) {
         this.currentPage--;
       }
     },
-    // Redirect to the document details page
+
     viewDocument(documentId) {
       this.$router.push(`/secretary-dashboard/documents/${documentId}`);
     }
@@ -155,8 +160,8 @@ export default {
 };
 </script>
 
+
 <style scoped>
-/* Adjust table styling */
 table {
   margin-top: 15px;
   width: 100%;
@@ -171,20 +176,18 @@ td {
 }
 
 th {
-  background-color: navy; /* Navy blue background */
+  background-color: navy; 
   color: white;
 }
 
-/* Container for search bar and top bar */
 .search-and-top-bar {
   display: flex;
   flex-direction: column;
-  gap: 10px; /* Adds space between search bar and counter/pagination */
+  gap: 10px; 
 }
 
-/* Search bar styling */
 .search-bar-container {
-  align-self: flex-end; /* Align search bar to the right */
+  align-self: flex-end; 
   position: relative;
   width: 300px;
 }
@@ -199,25 +202,22 @@ th {
 
 .search-bar {
   width: 100%;
-  padding: 8px 12px 8px 30px; /* Add padding for icon */
+  padding: 8px 12px 8px 30px;
   font-size: 14px;
   border: 1px solid #ddd;
   border-radius: 4px;
 }
 
-/* Top bar container for results and pagination */
 .top-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-/* Results Counter */
 .results-counter {
   font-size: 14px;
 }
 
-/* Pagination styling */
 .pagination {
   display: flex;
   align-items: center;
@@ -249,7 +249,6 @@ th {
   color: #888;
 }
 
-/* Style clickable rows */
 .clickable-row {
   cursor: pointer;
   transition: background-color 0.2s ease;

@@ -10,23 +10,45 @@
           <div class="input-group-prepend">
             <span class="input-group-text"><i class="fas fa-user"></i></span>
           </div>
-          <input type="text" class="form-control" placeholder="Username" v-model="username" required>
+          <input
+            type="text"
+            class="form-control"
+            placeholder="Username"
+            v-model="username"
+            required
+            :disabled="retryAfter > 0"
+          />
         </div>
         <div class="input-group mb-3">
           <div class="input-group-prepend">
             <span class="input-group-text"><i class="fas fa-lock"></i></span>
           </div>
-          <input type="password" class="form-control" placeholder="Password" v-model="password" required>
+          <input
+            type="password"
+            class="form-control"
+            placeholder="Password"
+            v-model="password"
+            required
+            :disabled="retryAfter > 0"
+          />
         </div>
         <div class="text-center">
-          <button type="submit" class="btn btn-primary btn-block mt-3">Log In</button>
+          <button
+            type="submit"
+            class="btn btn-primary btn-block mt-3"
+            :disabled="retryAfter > 0"
+          >
+            Log In
+          </button>
+        </div>
+        <div v-if="retryAfter > 0" class="alert alert-warning mt-3">
+          Too many login attempts. Please wait {{ retryAfter }} seconds before trying again.
         </div>
         <div v-if="errorMessage" class="alert alert-danger mt-3">
           {{ errorMessage }}
         </div>
       </form>
 
-      <!-- Two-factor authentication modal -->
       <div v-if="isTwoFactorRequired" class="two-factor-container">
         <h3>Enter Two-Factor Authentication Code</h3>
         <form @submit.prevent="verify2fa">
@@ -34,10 +56,18 @@
             <div class="input-group-prepend">
               <span class="input-group-text"><i class="fas fa-key"></i></span>
             </div>
-            <input type="text" class="form-control" placeholder="Authentication Code" v-model="twoFactorCode" required>
+            <input
+              type="text"
+              class="form-control"
+              placeholder="Authentication Code"
+              v-model="twoFactorCode"
+              required
+            />
           </div>
           <div class="text-center">
-            <button type="submit" class="btn btn-primary btn-block mt-3">Verify Code</button>
+            <button type="submit" class="btn btn-primary btn-block mt-3">
+              Verify Code
+            </button>
           </div>
           <div v-if="errorMessage" class="alert alert-danger mt-3">
             {{ errorMessage }}
@@ -49,39 +79,39 @@
 </template>
 
 <script>
-import axios from 'axios';
+import axios from "axios";
 
 axios.defaults.withCredentials = true;
 
 export default {
-  name: 'login',
+  name: "login",
   data() {
     return {
-      username: '',
-      password: '',
-      errorMessage: '',
-      isTwoFactorRequired: false, // Flag to check if 2FA is needed
-      twoFactorCode: '', // To store the 2FA code input
-      twoFactorToken: '' // Store the token from the first login response
+      username: "",
+      password: "",
+      errorMessage: "",
+      isTwoFactorRequired: false, 
+      twoFactorCode: "",
+      twoFactorToken: "",
+      retryAfter: 0, 
+      timer: null, 
     };
   },
   methods: {
     async login() {
       try {
-        await axios.get('/sanctum/csrf-cookie');
-        const response = await axios.post('/api/login', {
+        await axios.get("/sanctum/csrf-cookie");
+        const response = await axios.post("/api/login", {
           username: this.username,
-          password: this.password
+          password: this.password,
         });
 
-        const { access_token, role, two_factor_required, two_factor_token } = response.data;
-
-        // If 2FA is required, set up the token and show the 2FA form
+        const { access_token, role, two_factor_required, two_factor_token } =
+          response.data;
         if (two_factor_required) {
-          this.twoFactorToken = two_factor_token; // Save the token for later verification
+          this.twoFactorToken = two_factor_token;
           this.isTwoFactorRequired = true;
         } else {
-          // If 2FA is not required, proceed with storing token and redirecting
           this.handleSuccessfulLogin(role, access_token);
         }
       } catch (error) {
@@ -91,14 +121,13 @@ export default {
 
     async verify2fa() {
       try {
-        const response = await axios.post('/api/verify-2fa', {
+        const response = await axios.post("/api/verify-2fa", {
           two_factor_token: this.twoFactorToken,
-          two_factor_code: this.twoFactorCode
+          two_factor_code: this.twoFactorCode,
         });
 
         const { access_token, role } = response.data;
 
-        // Handle successful 2FA verification
         this.handleSuccessfulLogin(role, access_token);
       } catch (error) {
         this.handleError(error);
@@ -106,32 +135,48 @@ export default {
     },
 
     handleSuccessfulLogin(role, token) {
-      // Store token and role in local storage
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify({ role }));
+      localStorage.setItem("token", token);
+      localStorage.setItem("user", JSON.stringify({ role }));
 
-      // Set authorization header for future requests
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
 
-      // Redirect based on role
-      if (role === 'admin') {
-        this.$router.push('/admin-dashboard');
-      } else if (role === 'secretary') {
-        this.$router.push('/secretary-dashboard');
-      } else if (role === 'department') {
-        this.$router.push('/department-dashboard');
-      } else if (role === 'user') {
-        this.$router.push('/user-dashboard');
+      if (role === "admin") {
+        this.$router.push("/admin-dashboard");
+      } else if (role === "secretary") {
+        this.$router.push("/secretary-dashboard");
+      } else if (role === "department") {
+        this.$router.push("/department-dashboard");
+      } else if (role === "user") {
+        this.$router.push("/user-dashboard");
       }
     },
 
     handleError(error) {
-      this.errorMessage = error.response ? error.response.data.message : 'An error occurred. Please try again.';
-    }
-  }
+      if (error.response && error.response.status === 429) {
+        this.retryAfter = parseInt(
+          error.response.headers["retry-after"] || 30
+        );
+        this.startRetryTimer();
+      } else {
+        this.errorMessage = error.response
+          ? error.response.data.message
+          : "An error occurred. Please try again.";
+      }
+    },
+
+    startRetryTimer() {
+      clearInterval(this.timer);
+      this.timer = setInterval(() => {
+        if (this.retryAfter > 0) {
+          this.retryAfter--;
+        } else {
+          clearInterval(this.timer);
+        }
+      }, 1000);
+    },
+  },
 };
 </script>
-
 
 <style scoped>
 .login-container {
@@ -139,7 +184,7 @@ export default {
   justify-content: center;
   align-items: center;
   height: 100vh;
-  background-image: url('/public/lnubacklogo.jpg');
+  background-image: url("/public/lnubacklogo.jpg");
   background-size: cover;
   background-position: center;
 }
@@ -155,6 +200,6 @@ export default {
 }
 
 .btn {
-  width: 100%; /* Ensures the button takes up the full width of the login box */
+  width: 100%;
 }
 </style>

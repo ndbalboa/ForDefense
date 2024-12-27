@@ -12,7 +12,7 @@ export async function isAuthenticated() {
 export async function getUserRole() {
   try {
     const response = await axios.get('/api/user');
-    return response.data.role; // Assuming the role is returned in the user data
+    return response.data.role; 
   } catch (error) {
     return null;
   }
@@ -20,6 +20,6 @@ export async function getUserRole() {
 
 export async function logout() {
   await axios.post('/api/logout');
-  localStorage.removeItem('user'); // Remove user data from localStorage
+  localStorage.removeItem('user'); 
 }
 

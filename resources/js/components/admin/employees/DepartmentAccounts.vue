@@ -29,7 +29,6 @@
       </tbody>
     </table>
 
-    <!-- Modal for viewing user details -->
     <div v-if="showModal" class="modal-overlay" @click="closeModal">
       <div class="modal-content" @click.stop>
         <h3>User Details</h3>
@@ -37,12 +36,16 @@
         <p><strong>Department:</strong> {{ selectedUser.department }}</p>
         <p><strong>Name:</strong> {{ selectedUser.firstName }} {{ selectedUser.lastName }}</p>
         <p><strong>Email:</strong> {{ selectedUser.email }}</p>
-        <p><strong>Role:</strong> {{ selectedUser.role }}</p>
         <p><strong>Status:</strong> {{ selectedUser.status }}</p>
-        
-        <!-- Display Password -->
-        <p><strong>Password:</strong> {{ selectedUser.password ? '********' : 'No password set' }}</p>
-        
+
+        <p v-if="isAdmin"><strong>Password:</strong>
+          <span v-if="showPassword">{{ selectedUser.password ? selectedUser.password : 'No password set' }}</span>
+          <span v-else>********</span>
+          <button @click="togglePasswordVisibility" class="btn btn-toggle-password">
+            {{ showPassword ? 'Hide' : 'Show' }} Password
+          </button>
+        </p>
+
         <div class="modal-actions">
           <button class="btn btn-close" @click="closeModal">
             <i class="fas fa-times"></i> Close
@@ -59,9 +62,11 @@ import axios from 'axios';
 export default {
   data() {
     return {
-      users: [], // List of department users to display
-      selectedUser: null, // For viewing detailed user info
-      showModal: false, // Control modal visibility
+      users: [],
+      selectedUser: null,
+      showModal: false,
+      showPassword: false,
+      isAdmin: false, 
     };
   },
   methods: {
@@ -72,8 +77,8 @@ export default {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           }
         });
-        console.log('Fetched department accounts:', response.data);
         this.users = response.data;
+        console.log('Fetched department accounts:', this.users);
       } catch (error) {
         console.error('Error fetching department accounts:', error);
         alert('Error fetching department accounts');
@@ -81,13 +86,16 @@ export default {
     },
     async openModal(user) {
       try {
-        const response = await axios.get(`/api/admin/accounts/department-accounts/${user.id}`, {
+        const response = await axios.get(`/api/admin/accounts/show/department-accounts/${user.id}`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           }
         });
         this.selectedUser = response.data;
         this.showModal = true;
+        
+        const loggedInUser = JSON.parse(localStorage.getItem('user')); 
+        this.isAdmin = loggedInUser.role === 'admin';
       } catch (error) {
         console.error('Error fetching user details:', error);
         alert('Error fetching user details');
@@ -96,6 +104,7 @@ export default {
     closeModal() {
       this.showModal = false;
       this.selectedUser = null;
+      this.showPassword = false;
     },
     async deleteAccount(userId) {
       const confirmation = confirm('Are you sure you want to delete this account?');
@@ -107,8 +116,7 @@ export default {
             }
           });
           console.log('Account deleted:', response.data);
-
-          // Remove the deleted account from the local users array
+          
           this.users = this.users.filter(user => user.id !== userId);
           alert('Account deleted successfully.');
         } catch (error) {
@@ -117,9 +125,12 @@ export default {
         }
       }
     },
+    togglePasswordVisibility() {
+      this.showPassword = !this.showPassword;
+    },
   },
   mounted() {
-    this.fetchUsers(); // Fetch users when the component is mounted
+    this.fetchUsers();
   },
 };
 </script>
@@ -220,6 +231,17 @@ export default {
 
 .btn-close:hover {
   background-color: #0056b3;
+}
+
+.btn-toggle-password {
+  margin-left: 10px;
+  background-color: #ffa500;
+  color: white;
+  font-size: 12px;
+}
+
+.btn-toggle-password:hover {
+  background-color: #e69500;
 }
 
 i {

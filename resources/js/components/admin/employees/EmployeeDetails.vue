@@ -169,11 +169,10 @@
         <i class="fas fa-folder-open"></i> View Employee's Documents
       </button>
       <div class="profile-image-container">
-        <img :src="employee.profileImage || 'default-profile.png'" class="profile-image" alt="Profile Image">
+        <img :src="employee.profileImage ? `/storage/profile_images/${employee.profileImage}` : '/storage/profile_images/default-profile.png'" alt="Profile Image" class="profile-image" />
       </div>
       <div v-if="isEditing" class="upload-section">
         <input type="file" @change="handleImageUpload" accept="image/*" />
-        <button v-if="employee.profileImage && !imageToDelete" @click="confirmDeleteImage" class="btn btn-danger mt-2">Delete Image</button>
       </div>
 
       <!-- Edit, Save, Cancel buttons -->
@@ -206,8 +205,6 @@ export default {
     return {
       employee: null,
       isEditing: false,
-      selectedImage: null,
-      imageToDelete: false,
     };
   },
   created() {
@@ -232,38 +229,18 @@ export default {
     },
     cancelEdit() {
       this.isEditing = false;
-      this.fetchEmployeeDetails(this.employee.id); // Reset the form to original data
+      this.fetchEmployeeDetails(this.employee.id); 
     },
     async saveEmployeeDetails() {
       try {
-        if (this.selectedImage) {
-          const formData = new FormData();
-          formData.append('profileImage', this.selectedImage);
-          await axios.post(`/api/admin/employees/${this.employee.id}/upload-image`, formData, {
-            headers: { 'Content-Type': 'multipart/form-data' }
-          });
-        } else if (this.imageToDelete) {
-          await axios.post(`/api/admin/employees/${this.employee.id}/delete-image`);
-        }
-        await axios.put(`/api/admin/employees/${this.employee.id}`, this.employee);
+        const response = await axios.put(`/api/admin/employees/update/${this.employee.id}`, this.employee);
+
+        alert('Employee details updated successfully.');
         this.isEditing = false;
-        alert('Employee details updated successfully!');
+        this.employee = response.data.employee;
       } catch (error) {
         console.error('Error saving employee details:', error);
-        alert('Failed to update employee details');
-      }
-    },
-    handleImageUpload(event) {
-      const file = event.target.files[0];
-      if (file) {
-        this.selectedImage = file;
-        this.imageToDelete = false;
-      }
-    },
-    confirmDeleteImage() {
-      if (confirm('Are you sure you want to delete this image?')) {
-        this.imageToDelete = true;
-        this.selectedImage = null;
+        alert('Failed to update employee details.');
       }
     },
     async softDeleteEmployee() {
@@ -280,10 +257,12 @@ export default {
     },
     viewEmployeeDocuments() {
       this.$router.push({ name: 'EmployeeDocuments', params: { id: this.employee.id } });
-    }
-  }
+    },
+  },
 };
 </script>
+
+
 
 <style scoped>
 .profile-info-container {
@@ -313,20 +292,20 @@ export default {
 
 .profile-image-container {
   position: relative;
-  width: 150px;
-  height: 200px;
-  background-image: url('/public/user.png'); /* Replace with actual path to background image */
+  width: 400px;
+  height: 500px;
+  background-image: url('/public/user.png'); 
   background-size: cover;
   background-position: center;
   border-radius: 50%;
   margin-top: 10px;
-  overflow: hidden; /* Ensures the image stays within circular shape */
+  overflow: hidden; 
 }
 
 .profile-image {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+
 }
 
 .upload-section {

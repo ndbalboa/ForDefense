@@ -14,8 +14,8 @@ class Document extends Model
         'document_no', 
         'series_no',
         'date_issued', 
-        'from_date', 
-        'to_date', 
+        'inclusive_date', 
+        'sender', 
         'subject', 
         'description',
         'venue',
@@ -63,7 +63,7 @@ class Document extends Model
     }
     public function scopeForUser($query, $user)
     {
-        return $query->whereJsonContains('employee_names', $user->employee_id); // Adjust based on how employee_names is structured
+        return $query->whereJsonContains('employee_names', $user->employee_id); 
     }
     public function scopeFilterByEmployee($query, $employeeId)
     {

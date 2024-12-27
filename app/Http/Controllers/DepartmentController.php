@@ -204,14 +204,22 @@ public function getDepartmentAccounts()
     public function showDepartment(int $id): JsonResponse
     {
         $user = User::findOrFail($id);
-
+    
         if ($user->role !== 'department') {
             return response()->json(['error' => 'User not found or not a department account'], 404);
         }
-        
+    
+        // Check if the logged-in user is an admin
+        if (auth()->user()->role === 'admin') {
+            // Optionally, you can expose the password only for admins
+            return response()->json($user);  // The full user data, including password
+        }
+    
+        // If the logged-in user is not an admin, exclude the password
+        $user->makeHidden(['password']);
         return response()->json($user);
     }
-
+    
     // Method to delete a department account
     public function deleteAccount($id): JsonResponse
     {
@@ -228,6 +236,48 @@ public function getDepartmentAccounts()
         } catch (\Exception $e) {
             return response()->json(['message' => 'An error occurred while deleting the account', 'error' => $e->getMessage()], 500);
         }
+    }
+
+    public function view()
+    {
+        $departmentAccount = auth()->user();
+
+        if ($departmentAccount->role !== 'department') {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        return response()->json($departmentAccount);
+    }
+
+    public function edit(Request $request)
+    {
+        $departmentAccount = auth()->user();
+
+        if ($departmentAccount->role !== 'department') {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        $validatedData = $request->validate([
+            'username' => 'required|string|unique:users,username,' . $departmentAccount->id,
+            'email' => 'required|email|unique:users,email,' . $departmentAccount->id,
+            'password' => 'nullable|string|min:8',
+            'lastName' => 'required|string',
+            'firstName' => 'required|string',
+            'department' => 'required|string',
+        ]);
+
+        $departmentAccount->update([
+            'username' => $validatedData['username'],
+            'email' => $validatedData['email'],
+            'password' => $validatedData['password']
+                ? bcrypt($validatedData['password'])
+                : $departmentAccount->password,
+            'lastName' => $validatedData['lastName'],
+            'firstName' => $validatedData['firstName'],
+            'department' => $validatedData['department'],
+        ]);
+
+        return response()->json(['message' => 'Account updated successfully.']);
     }
 
 

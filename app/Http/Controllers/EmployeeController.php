@@ -25,44 +25,50 @@ class EmployeeController extends Controller
      */
     public function index()
     {
-        $employees = Employee::with('user')->paginate(10); // Paginate 10 employees per page
+        $employees = Employee::with('user')->paginate(10); 
         return response()->json($employees);
     }
 
-    /**
-     * Store a newly created employee in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\JsonResponse
-     */
     public function store(Request $request)
     {
-        Log::info('Store Request Data: ', $request->all());
+        $validatedData = $request->validate([
+            'lastName' => 'required|string|max:255',
+            'firstName' => 'required|string|max:255',
+            'middleName' => 'nullable|string|max:255',
+            'sex' => 'required|in:Male,Female,Other',
+            'civilStatus' => 'nullable|string|max:255',
+            'dateOfBirth' => 'required|date',
+            'religion' => 'nullable|string|max:255',
+            'emailAddress' => 'required|email|unique:employees,emailAddress',
+            'phoneNumber' => 'required|string|unique:employees,phoneNumber',
+            'gsisId' => 'nullable|string|unique:employees,gsisId',
+            'pagibigId' => 'nullable|string|unique:employees,pagibigId',
+            'philhealthId' => 'nullable|string|unique:employees,philhealthId',
+            'sssNo' => 'nullable|string|unique:employees,sssNo',
+            'agencyEmploymentNo' => 'nullable|string|unique:employees,agencyEmploymentNo',
+            'taxId' => 'nullable|string|unique:employees,taxId',
+            'academicRank' => 'required|string|max:255',
+            'universityPosition' => 'required|string|max:255',
+            'permanent_street' => 'nullable|string|max:255',
+            'permanent_barangay' => 'nullable|string|max:255',
+            'permanent_city' => 'nullable|string|max:255',
+            'permanent_province' => 'nullable|string|max:255',
+            'permanent_country' => 'nullable|string|max:255',
+            'permanent_zipcode' => 'nullable|string|max:10',
+            'residential_street' => 'nullable|string|max:255',
+            'residential_barangay' => 'nullable|string|max:255',
+            'residential_city' => 'nullable|string|max:255',
+            'residential_province' => 'nullable|string|max:255',
+            'residential_country' => 'nullable|string|max:255',
+            'residential_zipcode' => 'nullable|string|max:10',
+            'department' => 'nullable|string|max:255',
+        ]);
 
-        $validator = Validator::make($request->all(), $this->getValidationRules());
+        Employee::create($validatedData);
 
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 400);
-        }
-
-        $data = $this->getValidatedData($request);
-
-        // Handle profile image upload
-        if ($request->hasFile('profileImage')) {
-            $data['profileImage'] = $this->storeProfileImage($request);
-        }
-
-        $employee = Employee::create($data);
-
-        return response()->json(['message' => 'Employee added successfully', 'employee' => $employee], 201);
+        return response()->json(['message' => 'Employee added successfully'], 201);
     }
-
-    /**
-     * Display the specified employee.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\JsonResponse
-     */
+    
     public function show($id)
     {
         $employee = Employee::with('user')->find($id);
@@ -73,208 +79,86 @@ class EmployeeController extends Controller
 
         return response()->json(['employee' => $employee]);
     }
-
-    /**
-     * Update the specified employee in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $id
-     * @return \Illuminate\Http\JsonResponse
-     */
     public function update(Request $request, $id)
     {
-        try {
-            $employee = Employee::findOrFail($id);
-            $employee->update($request->all()); // Update employee with new data
+
+        $employee = Employee::findOrFail($id);
     
-            // Handle profile image upload if any
-            if ($request->hasFile('profileImage')) {
-                $imagePath = $request->file('profileImage')->store('profile_images', 'public');
-                $employee->profile_image = $imagePath;
-                $employee->save();
-            }
-    
-            return response()->json(['employee' => $employee], 200);
-        } catch (\Exception $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
-        }
-    }    
-    /**
-     * Register unregistered employee and associate with document.
-     *
-     * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function registerUnregisteredEmployee(Request $request)
-    {
-        // Validate the request for unregistered employee information
-        $validatedData = $request->validate([
-            'document_id' => 'required|exists:documents,id',
-            'employee_name' => 'required|string',
-            'gender' => 'nullable|in:male,female',
-            'civil_status' => 'nullable|string',
-            'email' => 'nullable|string|email|unique:employees,emailAddress',
-            'religion' => 'nullable|string|max:255',
-        ]);
-
-        // Extract the name and split into first name and last name
-        $names = explode(' ', $validatedData['employee_name']);
-        $firstName = $names[0] ?? null;
-        $lastName = end($names);
-
-        // Check if the employee already exists
-        $existingEmployee = Employee::where('firstName', $firstName)
-            ->where('lastName', $lastName)
-            ->first();
-
-        if ($existingEmployee) {
-            return response()->json(['error' => 'Employee already exists.'], 400);
-        }
-
-        // Add the new employee to the employees table
-        $newEmployee = Employee::create([
-            'firstName' => $firstName,
-            'lastName' => $lastName,
-            'gender' => $validatedData['gender'],
-            'civilStatus' => $validatedData['civil_status'],
-            'emailAddress' => $validatedData['email'],
-            'religion' => $validatedData['religion'],
-        ]);
-
-        // Remove the unregistered employee from the document_employee_names table
-        DocumentEmployeeName::where('document_id', $validatedData['document_id'])
-            ->where('employee_name', $validatedData['employee_name'])
-            ->delete();
-
-        // Associate the new employee with the document
-        $document = Document::find($validatedData['document_id']);
-        if ($document) {
-            $document->employees()->attach($newEmployee->id);
-        }
-
-        return response()->json([
-            'message' => 'Employee registered and associated with document successfully.',
-            'employee' => $newEmployee,
-        ]);
-    }
-
-    /**
-     * Get validation rules for employee creation and updating.
-     *
-     * @param  int|null $employeeId
-     * @return array
-     */
-    protected function getValidationRules($employeeId = null)
-    {
-        return [
+        $validated = $request->validate([
             'lastName' => 'required|string|max:255',
             'firstName' => 'required|string|max:255',
             'middleName' => 'nullable|string|max:255',
-            'sex' => 'required|string|max:10',
-            'civilStatus' => 'required|string|max:20',
+            'sex' => 'required|in:Male,Female,Other',
+            'civilStatus' => 'nullable|string|max:255',
             'dateOfBirth' => 'required|date',
             'religion' => 'nullable|string|max:255',
-            'emailAddress' => 'required|email|max:255|unique:employees,emailAddress,' . ($employeeId ?? 'NULL'),
-            'phoneNumber' => 'required|string|max:15|unique:employees,phoneNumber,' . ($employeeId ?? 'NULL'),
-            'gsisId' => 'nullable|string|max:255|unique:employees,gsisId,' . ($employeeId ?? 'NULL'),
-            'pagibigId' => 'nullable|string|max:255|unique:employees,pagibigId,' . ($employeeId ?? 'NULL'),
-            'philhealthId' => 'nullable|string|max:255|unique:employees,philhealthId,' . ($employeeId ?? 'NULL'),
-            'sssNo' => 'nullable|string|max:255|unique:employees,sssNo,' . ($employeeId ?? 'NULL'),
-            'agencyEmploymentNo' => 'nullable|string|max:255|unique:employees,agencyEmploymentNo,' . ($employeeId ?? 'NULL'),
-            'taxId' => 'nullable|string|max:255|unique:employees,taxId,' . ($employeeId ?? 'NULL'),
-            'academicRank' => 'required|string|max:50',
-            'universityPosition' => 'required|string|max:50',
-            'profileImage' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+            'emailAddress' => 'required|email|unique:employees,emailAddress,' . $employee->id,
+            'phoneNumber' => 'required|string|unique:employees,phoneNumber,' . $employee->id,
+            'gsisId' => 'nullable|string|max:255|unique:employees,gsisId,' . $employee->id,
+            'pagibigId' => 'nullable|string|max:255|unique:employees,pagibigId,' . $employee->id,
+            'philhealthId' => 'nullable|string|max:255|unique:employees,philhealthId,' . $employee->id,
+            'sssNo' => 'nullable|string|max:255|unique:employees,sssNo,' . $employee->id,
+            'agencyEmploymentNo' => 'nullable|string|max:255|unique:employees,agencyEmploymentNo,' . $employee->id,
+            'taxId' => 'nullable|string|max:255|unique:employees,taxId,' . $employee->id,
+            'academicRank' => 'nullable|string|max:255',
+            'universityPosition' => 'nullable|string|max:255',
             'permanent_street' => 'nullable|string|max:255',
             'permanent_barangay' => 'nullable|string|max:255',
             'permanent_city' => 'nullable|string|max:255',
             'permanent_province' => 'nullable|string|max:255',
             'permanent_country' => 'nullable|string|max:255',
-            'permanent_zipcode' => 'nullable|string|max:20',
+            'permanent_zipcode' => 'nullable|string|max:255',
             'residential_street' => 'nullable|string|max:255',
             'residential_barangay' => 'nullable|string|max:255',
             'residential_city' => 'nullable|string|max:255',
             'residential_province' => 'nullable|string|max:255',
             'residential_country' => 'nullable|string|max:255',
-            'residential_zipcode' => 'nullable|string|max:20',
-        ];
-    }
-//true function for saving on add new employee
-    /**
-     * Get validated data from the request.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return array
-     */
-    protected function getValidatedData(Request $request)
-    {
-        try {
-            // Create a new Employee instance with the validated data
-            $employee = Employee::create([
-                'lastName' => $request->lastName,
-                'firstName' => $request->firstName,
-                'middleName' => $request->middleName,
-                'sex' => $request->sex,
-                'civilStatus' => $request->civilStatus,
-                'dateOfBirth' => $request->dateOfBirth,
-                'religion' => $request->religion,
-                'emailAddress' => $request->emailAddress,
-                'phoneNumber' => $request->phoneNumber,
-                'gsisId' => $request->gsisId,
-                'pagibigId' => $request->pagibigId,
-                'philhealthId' => $request->philhealthId,
-                'sssNo' => $request->sssNo,
-                'agencyEmploymentNo' => $request->agencyEmploymentNo,
-                'taxId' => $request->taxId,
-                'academicRank' => $request->academicRank,
-                'universityPosition' => $request->universityPosition,
-                'permanent_street' => $request->permanent_street,
-                'permanent_barangay' => $request->permanent_barangay,
-                'permanent_city' => $request->permanent_city,
-                'permanent_province' => $request->permanent_province,
-                'permanent_country' => $request->permanent_country,
-                'permanent_zipcode' => $request->permanent_zipcode,
-                'residential_street' => $request->residential_street,
-                'residential_barangay' => $request->residential_barangay,
-                'residential_city' => $request->residential_city,
-                'residential_province' => $request->residential_province,
-                'residential_country' => $request->residential_country,
-                'residential_zipcode' => $request->residential_zipcode,
-                'department' => $request->department,
-            ]);
+            'residential_zipcode' => 'nullable|string|max:255',
+            'department' => 'nullable|string|max:255',
+        ]);
     
-            // Return a JSON response with a success message
-            return response()->json([
-                'message' => 'Employee data created successfully.',
-                'employee' => $employee,
-            ], 201);
-        } catch (\Exception $e) {
-            // Return a JSON response with an error message if an exception is caught
-            return response()->json([
-                'error' => 'Failed to create employee data. Please try again.',
-                'exception' => $e->getMessage(), // Optional, include only if needed for debugging
-            ], 500);
+        $employee->update($validated);
+
+        return response()->json(['employee' => $employee]);
+    }
+    
+    // Upload a profile image for the employee
+    public function uploadProfileImage(Request $request, $id)
+    {
+        $employee = Employee::findOrFail($id);
+
+        $request->validate([
+            'profileImage' => 'required|image|mimes:jpg,jpeg,png|max:2048',
+        ]);
+
+        $image = $request->file('profileImage');
+        $imagePath = $image->store('profile_images', 'public');
+
+        // Save the image path to the employee's profile
+        $employee->profileImage = $imagePath;
+        $employee->save();
+
+        return response()->json(['message' => 'Profile image uploaded successfully.', 'profileImageUrl' => Storage::url($imagePath)]);
+    }
+
+    // Delete the employee's profile image
+    public function deleteImage($id)
+    {
+        $employee = Employee::findOrFail($id);
+
+        if ($employee->profileImage) {
+            // Delete the image from storage
+            Storage::delete('public/' . $employee->profileImage);
+
+            // Remove the profile image path from the employee's record
+            $employee->profileImage = null;
+            $employee->save();
+
+            return response()->json(['message' => 'Profile image deleted successfully.']);
         }
-    }
-    
-    
 
-    /**
-     * Handle profile image storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return string
-     */
-    protected function storeProfileImage(Request $request)
-    {
-        return $request->file('profileImage')->store('profile_images', 'public');
+        return response()->json(['message' => 'No profile image to delete.'], 404);
     }
-
-    /**
-     * Fetch authenticated user profile.
-     *
-     * @return \Illuminate\Http\JsonResponse
-     */
     public function fetchUserProfile()
     {
         $user = Auth::user();
@@ -497,6 +381,23 @@ public function restore($id)
             return response()->json(Department::select('id', 'department')->get());
         }
     
+  /**
+     * Permanently delete a deactivated employee.
+     *
+     * @param  int  $employeeId
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function deleteEmployeePermanently($employeeId)
+    {
+        $employee = Employee::withTrashed()->find($employeeId);
 
+        if ($employee) {
+            // Permanently delete the employee
+            $employee->forceDelete();
+            return response()->json(['message' => 'Employee deleted permanently.']);
+        }
+
+        return response()->json(['message' => 'Employee not found.'], 404);
+    }
 
 }

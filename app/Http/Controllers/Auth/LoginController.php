@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
 use PragmaRX\Google2FALaravel\Google2FA;
 use App\Models\User;
 use App\Models\Log;
@@ -14,18 +16,32 @@ class LoginController extends Controller
 {
     public function login(Request $request)
     {
-        // Validate the incoming request
         $request->validate([
             'username' => 'required|string',
             'password' => 'required|string',
         ]);
 
+        $key = $this->throttleKey($request);
+
+        // Check if the user is rate-limited
+        if (RateLimiter::tooManyAttempts($key, 5)) {
+            $seconds = RateLimiter::availableIn($key);
+            return response()->json([
+                'message' => "Too many login attempts. Please try again in {$seconds} seconds."
+            ], 429);
+        }
+
         // Find the user by username
         $user = User::where('username', $request->username)->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {
+            // Increment the rate limiter for failed attempts
+            RateLimiter::hit($key, 30); // Lock out for 30 seconds after too many attempts
             return response()->json(['message' => 'Invalid credentials'], 401);
         }
+
+        // Reset rate limiter on successful login
+        RateLimiter::clear($key);
 
         // Log the activity
         $this->logActivity($user, 'login', 'User logged in.');
@@ -90,13 +106,9 @@ class LoginController extends Controller
             // Log the activity
             $this->logActivity($user, 'logout', 'User logged out.');
 
-            // Log out the user
             Auth::guard('web')->logout();
-
-            // Invalidate the session
             $request->session()->invalidate();
 
-            // Regenerate the session token
             $request->session()->regenerateToken();
         }
 
@@ -118,5 +130,16 @@ class LoginController extends Controller
             'action' => $action,
             'details' => $details,
         ]);
+    }
+
+    /**
+     * Generate the rate limiter key for the user.
+     *
+     * @param Request $request
+     * @return string
+     */
+    private function throttleKey(Request $request)
+    {
+        return Str::lower($request->username) . '|' . $request->ip();
     }
 }

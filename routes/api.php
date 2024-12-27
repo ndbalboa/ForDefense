@@ -18,8 +18,6 @@ use App\Http\Controllers\BackupController;
 use App\Http\Controllers\AcademicRankController;
 use App\Http\Controllers\UniversityPositionController;
 
-
-// Authentication Routes
 Route::post('/login', [LoginController::class, 'login']);
 Route::post('verify-2fa', [LoginController::class, 'verify']);
 Route::post('/logout', [LoginController::class, 'logout'])->middleware('auth:sanctum');
@@ -28,7 +26,6 @@ Route::get('/documents/counts', [DocumentController::class, 'getDocumentCounts']
 Route::get('/mails/count', [MailController::class, 'getMailCounts']);
 Route::get('/logs/recent-activities', [LogController::class, 'getRecentActivities']);
 
-// Employee Routes (Admin only)
 Route::middleware('auth:sanctum')->prefix('admin')->group(function () {
     Route::get('/documents/type/{typeName}', [UploadDocumentController::class, 'fetchDocumentsByType']);
     Route::get('/documents/{documentId}', [DocumentController::class, 'getDocumentDetails']);
@@ -38,8 +35,6 @@ Route::middleware('auth:sanctum')->prefix('admin')->group(function () {
     Route::get('/upload/document-types', [UploadDocumentController::class, 'getDocumentTypes']);
     Route::post('/upload/documents', [UploadDocumentController::class, 'uploadDocument']);
 
-
-// API route to create a new document type
     Route::post('/store/document-types', [DocumentTypeController::class, 'store']);
     Route::get('/document-types', [DocumentTypeController::class, 'index']);
     Route::put('/update/document-types/{id}', [DocumentTypeController::class, 'update']);
@@ -48,19 +43,27 @@ Route::middleware('auth:sanctum')->prefix('admin')->group(function () {
 
 // Routes for Documents
     Route::post('/documents', [UploadDocumentController::class, 'storeDocs']);
+    Route::get('/documents/{id}/download-watermarked', [DocumentController::class, 'downloadWatermarked']);
+
 
     Route::get('/list/documents/{documentTypeId}', [DocumentController::class, 'getDocumentsByType']);
-
+    
     Route::delete('/employees/{employeeId}/deactivate', [EmployeeController::class, 'deactivateEmployee']);
     Route::get('/employees/no-user-or-deleted', [EmployeeController::class, 'getDeactivatedEmployees']);
     Route::post('users/{employeeId}/activate', [UserController::class, 'activateUser']);
     Route::post('/departments', [UserController::class, 'storeDepartment']);
     Route::delete('/employees/{id}', [EmployeeController::class, 'destroy']);
     Route::get('/employees/list', [EmployeeController::class, 'index']);
-    Route::post('/employees', [EmployeeController::class, 'store']);
+    Route::post('/employees/add', [EmployeeController::class, 'store']);
     Route::get('employees/{id}', [EmployeeController::class, 'show']);
+    Route::delete('/employees/destroy/{employeeId}', [EmployeeController::class, 'deleteEmployeePermanently']);
+    
+    Route::put('/employees/update/{id}', [EmployeeController::class, 'update']);
+    Route::post('/employees/{id}/upload-image', [EmployeeController::class, 'uploadImage']);
+    Route::delete('/employees/{id}/delete-image', [EmployeeController::class, 'deleteImage']);
+
     Route::delete('/employees/{id}', [EmployeeController::class, 'destroy'])->name('employees.destroy'); 
-    Route::put('/employees/{id}', [EmployeeController::class, 'update']);
+
     Route::post('/users', [UserController::class, 'store']);
     Route::post('/employees/{id}/restore', [EmployeeController::class, 'restore']);
     Route::delete('/employees/{id}/forceDelete', [EmployeeController::class, 'forceDeleteEmployee']);
@@ -79,7 +82,7 @@ Route::middleware('auth:sanctum')->prefix('admin')->group(function () {
     Route::get('/documents/download/{id}', [DocumentController::class, 'download']);
     Route::post('/search', [DocumentController::class, 'search']);
     Route::post('/advanced-search', [DocumentController::class, 'advancedSearch']);
-    Route::put('/documents/{id}', [DocumentController::class, 'updateDocument']);
+    Route::put('/documents/update/{id}', [DocumentController::class, 'updateDocument']);
     Route::delete('/admin/documents/{id}', [DocumentController::class, 'destroyDocument']);
     Route::post('/upload-document', [DocumentController::class, 'uploadDocument']);
     Route::get('/reports/generate', [ReportController::class, 'generateReport']);
@@ -92,18 +95,19 @@ Route::middleware('auth:sanctum')->prefix('admin')->group(function () {
     Route::get('/generated-reports', [ReportController::class, 'fetchGeneratedReports']);
     Route::get('documentsbydaterange', [ReportController::class, 'getDocumentsByCreationDateRange']);
     Route::get('/reports', [ReportController::class, 'index']);
-    Route::get('{id}/view', [ReportController::class, 'view']); // View report
-    Route::get('{id}/download', [ReportController::class, 'download']); // Download report
-    Route::delete('/reports/{id}', [ReportController::class, 'destroy']); // Delete report
+    Route::get('{id}/view', [ReportController::class, 'view']); 
+    Route::get('{id}/download', [ReportController::class, 'download']); 
+    Route::delete('/reports/{id}', [ReportController::class, 'destroy']);
+    Route::delete('delete/documents/{id}', [DocumentController::class, 'destroyDocument']);
 
     Route::get('/mails/count', [MailController::class, 'count']);
     Route::get('/mails/details', [MailController::class, 'details']);
     Route::post('/mails', [MailController::class, 'store']);
     Route::get('/getmails', [MailController::class, 'index']);
-    Route::get('/mails/{id}', [MailController::class, 'show']); // Get a single mail by ID
-    Route::put('/mails/{id}', [MailController::class, 'update']); // Update a mail
-    Route::delete('/mails/{id}', [MailController::class, 'destroy']); // Delete a mail
-    Route::get('/employeeselect', [MailController::class, 'getEmployees']); // Fetch employees
+    Route::get('/mails/{id}', [MailController::class, 'show']); 
+    Route::put('/mails/{id}', [MailController::class, 'update']);
+    Route::delete('/mails/{id}', [MailController::class, 'destroy']); 
+    Route::get('/employeeselect', [MailController::class, 'getEmployees']);
 
     Route::get('/academic-ranks', [AcademicRankController::class, 'index']);
     Route::post('/store/academic-ranks', [AcademicRankController::class, 'store']);
@@ -122,7 +126,7 @@ Route::middleware('auth:sanctum')->prefix('admin')->group(function () {
     Route::get('/department/document-type-counts', [DepartmentController::class, 'getDocumentTypeCounts']);
 
     Route::get('/accounts/departments', [DepartmentController::class, 'fetchDepartments']);
-    Route::get('/accounts/department-accounts/{id}', [DepartmentController::class, 'showDepartment']);
+    Route::get('/accounts/show/department-accounts/{id}', [DepartmentController::class, 'showDepartment']);
     Route::delete('/accounts/department-accounts/{id}', [DepartmentController::class, 'deleteAccount']);
 
     Route::get('/list/academic-ranks', [EmployeeController::class, 'listRanks']);
@@ -132,16 +136,16 @@ Route::middleware('auth:sanctum')->prefix('admin')->group(function () {
     Route::get('/departments/{id}/thisdocuments', [DocumentController::class, 'getDocumentsByDepartment']);
     Route::get('/thisdepartments', [DocumentController::class, 'getDepartments']);
 
-    //for backup
-    Route::get('/backup', [BackupController::class, 'createBackup']);
-    Route::get('/backups', [BackupController::class, 'listBackups']);
-    Route::post('/restore', [BackupController::class, 'restoreBackup']);
+    Route::post('/backup/create', [BackupController::class, 'createBackup']);
+    Route::post('/backup/restore', [BackupController::class, 'restoreBackup']);
+    Route::get('/backup/list', [BackupController::class, 'listBackups']);
+    Route::get('/backup/download/{backupFileName}', [BackupController::class, 'downloadBackup']);
+    Route::delete('/backup/delete/{filename}', [BackupController::class, 'deleteBackup']);
 
 
 
 });
 
-// User Profile Routes
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/employee-profile', [EmployeeProfileController::class, 'show']);
     Route::post('/employee-profile', [EmployeeProfileController::class, 'update']);
@@ -149,7 +153,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user/profile', [UserController::class, 'fetchUserProfile']);
     Route::put('/user/profile', [UserController::class, 'updateUserProfile']);
     Route::post('/user/upload-image', [UserController::class, 'uploadImage']);
-    Route::put('/user/current-username', [UserController::class, 'changeCredentials']);//////
     Route::put('/user/change-credentials', [UserController::class, 'changeCredentials']);
     Route::get('/user/{userId}/documents', [DocumentController::class, 'getDocumentsForUser']);
     Route::get('/documents', [DocumentController::class, 'getAllDocuments']);
@@ -163,6 +166,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/department/document-types', [DepartmentController::class, 'indexs']);
     Route::get('/department-documents', [DepartmentController::class, 'getDepartmentDocuments']);
     Route::get('/department-documentstype', [DepartmentController::class, 'getDepartmentDocumentTypes']);
+    Route::get('/view/department-account', [DepartmentController::class, 'view']);
+    Route::put('/edit/department-account', [DepartmentController::class, 'edit']);
 
 
     
@@ -171,6 +176,5 @@ Route::middleware('auth:api')->get('/user', function (Request $request) {
     return $request->user();
 });
 
-// Route to fetch documents by logged-in user's department
 Route::get('/documents/department/logged-in', [DocumentController::class, 'getDocumentsByLoggedInDepartment']);
 

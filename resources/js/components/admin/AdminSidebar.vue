@@ -67,7 +67,7 @@
             </li>
             <li class="nav-item">
               <router-link class="nav-link" to="/admin-dashboard/documents/others">
-                <i class="bi bi-file-earmark-text me-2"></i> Others
+                <i class="bi bi-file-earmark-text me-2"></i> All
               </router-link>
             </li>
           </ul>
@@ -100,37 +100,28 @@
           </ul>
         </transition>
       </li>
+      <li class="nav-item" @click.prevent="toggleMailsSubMenu">
+        <a class="nav-link d-flex align-items-center">
+          <i class="bi bi-envelope me-2"></i>
+          <span>Mails</span>
+          <i :class="['bi', isMailsSubMenuOpen ? 'bi-caret-down-fill' : 'bi-caret-left-fill', 'ms-auto']"></i>
+        </a>
 
-
-
-
-
-<li class="nav-item" @click.prevent="toggleMailsSubMenu">
-  <a class="nav-link d-flex align-items-center">
-    <i class="bi bi-envelope me-2"></i>
-    <span>Mails</span>
-    <i :class="['bi', isMailsSubMenuOpen ? 'bi-caret-down-fill' : 'bi-caret-left-fill', 'ms-auto']"></i>
-  </a>
-
-<transition name="slide-fade">
-  <ul v-show="isMailsSubMenuOpen" class="nav flex-column ms-3 submenu">
-    <li class="nav-item">
-      <router-link class="nav-link" to="/admin-dashboard/mail/new">
-        <i class="bi bi-file-earmark-text me-2"></i> Record Mail
-      </router-link>
-    </li>
-    <li class="nav-item">
-      <router-link class="nav-link" to="/admin-dashboard/mail/list">
-        <i class="bi bi-file-earmark-text me-2"></i> Mails List 
-      </router-link>
-    </li>
-  </ul>
-</transition>
-</li>
-
-
-      
-      
+      <transition name="slide-fade">
+        <ul v-show="isMailsSubMenuOpen" class="nav flex-column ms-3 submenu">
+          <li class="nav-item">
+            <router-link class="nav-link" to="/admin-dashboard/mail/new">
+              <i class="bi bi-file-earmark-text me-2"></i> Record Mail
+            </router-link>
+          </li>
+          <li class="nav-item">
+            <router-link class="nav-link" to="/admin-dashboard/mail/list">
+              <i class="bi bi-file-earmark-text me-2"></i> Mails List 
+            </router-link>
+          </li>
+        </ul>
+      </transition>
+      </li>
       <li class="nav-item" @click.prevent="toggleReportsSubMenu">
         <a class="nav-link d-flex align-items-center">
           <i class="bi bi-file-earmark-bar-graph-fill"></i>
@@ -201,6 +192,11 @@
               </router-link>
             </li>
             <li class="nav-item">
+              <router-link class="nav-link" to="/admin-dashboard/credentials">
+                Credentials
+              </router-link>
+            </li>
+            <li class="nav-item">
               <router-link class="nav-link" to="/admin-dashboard/settings">
                 Settings
               </router-link>
@@ -248,22 +244,29 @@ export default {
       this.isSettingsSubMenuOpen = !this.isSettingsSubMenuOpen;
     },
     async confirmLogout() {
-  const confirmed = confirm('Are you sure you want to logout?');
-  if (confirmed) {
-    try {
-      await axios.post('/api/logout', {}, { withCredentials: true });
-      this.$router.push('/');
-    } catch (error) {
-      console.error('Logout failed:', error.response ? error.response.data : error.message);
-      alert('Logout failed: ' + (error.response ? error.response.data.message : 'Server error'));
+    const confirmed = confirm('Are you sure you want to logout?');
+    if (confirmed) {
+      try {
+        await axios.post('/api/logout', {}, { withCredentials: true });
+        
+        // Remove the token from localStorage or sessionStorage after logging out
+        localStorage.removeItem('token');
+        sessionStorage.removeItem('token');
+        
+        // Redirect to login page or home page
+        this.$router.push('/');
+      } catch (error) {
+        console.error('Logout failed:', error.response ? error.response.data : error.message);
+        alert('Logout failed: ' + (error.response ? error.response.data.message : 'Server error'));
+      }
     }
-  }
-},
+  },
+
 
   },
   mounted() {
-    // Optional: Set the Axios base URL for all requests
-    axios.defaults.baseURL = 'http://lnurecordsoffice.com'; // Adjust if necessary
+    const base_url = import.meta.env.VITE_APP_URL;
+    axios.defaults.baseURL = base_url; 
   }
 };
 

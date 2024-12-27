@@ -2,9 +2,7 @@
     <div>
       <h1>All Documents</h1>
   
-      <!-- Search Bar and Top Bar Container -->
       <div class="search-and-top-bar">
-        <!-- Search Bar -->
         <div class="search-bar-container">
           <i class="fas fa-search search-icon"></i>
           <input
@@ -15,7 +13,6 @@
           />
         </div>
   
-        <!-- Results Counter and Pagination -->
         <div class="top-bar">
           <div class="results-counter">
             Showing {{ paginatedDocuments.length }} out of {{ filteredDocuments.length }} results
@@ -37,7 +34,6 @@
         </div>
       </div>
   
-      <!-- Document Table -->
       <table>
         <thead>
           <tr>
@@ -78,14 +74,13 @@
   export default {
     data() {
       return {
-        documents: [], // Full list of documents fetched from the server
-        searchQuery: "", // User's search query
-        currentPage: 1, // Current page for pagination
-        perPage: 5, // Number of results per page
+        documents: [], 
+        searchQuery: "", 
+        currentPage: 1, 
+        perPage: 5, 
       };
     },
     computed: {
-      // Filter documents based on the search query
       filteredDocuments() {
         const query = this.searchQuery.toLowerCase();
         return this.documents.filter(
@@ -97,17 +92,15 @@
             )
         );
       },
-      // Get paginated documents based on the current page
       paginatedDocuments() {
         const start = (this.currentPage - 1) * this.perPage;
         const end = start + this.perPage;
         return this.filteredDocuments.slice(start, end);
       },
-      // Calculate total number of pages
+
       totalPages() {
         return Math.ceil(this.filteredDocuments.length / this.perPage);
       },
-      // Dynamic pagination logic for displaying ellipses
       visiblePages() {
         const total = this.totalPages;
         const current = this.currentPage;
@@ -124,10 +117,9 @@
       },
     },
     mounted() {
-      this.fetchAllDocuments(); // Fetch all documents
+      this.fetchAllDocuments(); 
     },
     methods: {
-      // Fetch all documents from the API
       async fetchAllDocuments() {
         try {
           const response = await axios.get("/api/admin/all/documents");
@@ -136,25 +128,21 @@
           console.error("Error fetching documents:", error);
         }
       },
-      // Set the page to the selected value
       setPage(page) {
         if (page !== "...") {
           this.currentPage = page;
         }
       },
-      // Go to the next page
       nextPage() {
         if (this.currentPage < this.totalPages) {
           this.currentPage++;
         }
       },
-      // Go to the previous page
       prevPage() {
         if (this.currentPage > 1) {
           this.currentPage--;
         }
       },
-      // Redirect to the document details page
       viewDocument(documentId) {
         this.$router.push(`/admin-dashboard/documents/${documentId}`);
       },
@@ -163,7 +151,7 @@
   </script> 
   
   <style scoped>
-  /* Adjust table styling */
+
   table {
     margin-top: 15px;
     width: 100%;
@@ -178,20 +166,18 @@
   }
   
   th {
-    background-color: navy; /* Navy blue background */
+    background-color: navy; 
     color: white;
   }
   
-  /* Container for search bar and top bar */
   .search-and-top-bar {
     display: flex;
     flex-direction: column;
-    gap: 10px; /* Adds space between search bar and counter/pagination */
+    gap: 10px; 
   }
-  
-  /* Search bar styling */
+
   .search-bar-container {
-    align-self: flex-end; /* Align search bar to the right */
+    align-self: flex-end; 
     position: relative;
     width: 300px;
   }
@@ -206,25 +192,22 @@
   
   .search-bar {
     width: 100%;
-    padding: 8px 12px 8px 30px; /* Add padding for icon */
+    padding: 8px 12px 8px 30px; 
     font-size: 14px;
     border: 1px solid #ddd;
     border-radius: 4px;
   }
   
-  /* Top bar container for results and pagination */
   .top-bar {
     display: flex;
     justify-content: space-between;
     align-items: center;
   }
   
-  /* Results Counter */
   .results-counter {
     font-size: 14px;
   }
-  
-  /* Pagination styling */
+ 
   .pagination {
     display: flex;
     align-items: center;
@@ -255,8 +238,7 @@
     padding: 8px 12px;
     color: #888;
   }
-  
-  /* Style clickable rows */
+
   .clickable-row {
     cursor: pointer;
     transition: background-color 0.2s ease;

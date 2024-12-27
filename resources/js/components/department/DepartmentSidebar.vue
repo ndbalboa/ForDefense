@@ -44,7 +44,7 @@
             </li>
             <li class="nav-item">
               <router-link class="nav-link" to="/department-dashboard/department/documents/others">
-                <i class="bi bi-file-earmark-text me-2"></i> Others
+                <i class="bi bi-file-earmark-text me-2"></i> All
               </router-link>
             </li>
           </ul>
@@ -60,7 +60,7 @@
         <transition name="slide-fade">
           <ul v-show="isSettingsSubMenuOpen" class="nav flex-column ms-3 submenu">
             <li class="nav-item">
-              <router-link class="nav-link" to="department-dashboard/settings">
+              <router-link class="nav-link" to="/department-dashboard/departmentaccount">
                 Settings
               </router-link>
             </li>
@@ -95,22 +95,26 @@ export default {
       this.isSettingsSubMenuOpen = !this.isSettingsSubMenuOpen;
     },
     async confirmLogout() {
-  const confirmed = confirm('Are you sure you want to logout?');
-  if (confirmed) {
-    try {
-      await axios.post('/api/logout', {}, { withCredentials: true });
-      this.$router.push('/');
-    } catch (error) {
-      console.error('Logout failed:', error.response ? error.response.data : error.message);
-      alert('Logout failed: ' + (error.response ? error.response.data.message : 'Server error'));
+    const confirmed = confirm('Are you sure you want to logout?');
+    if (confirmed) {
+      try {
+        await axios.post('/api/logout', {}, { withCredentials: true });
+
+        localStorage.removeItem('token');
+        sessionStorage.removeItem('token');
+        
+        this.$router.push('/');
+      } catch (error) {
+        console.error('Logout failed:', error.response ? error.response.data : error.message);
+        alert('Logout failed: ' + (error.response ? error.response.data.message : 'Server error'));
+      }
     }
-  }
-},
+  },
 
   },
   mounted() {
-    // Optional: Set the Axios base URL for all requests
-    axios.defaults.baseURL = 'http://lnurecordsoffice.com'; // Adjust if necessary
+    const base_url = import.meta.env.VITE_APP_URL;
+    axios.defaults.baseURL = base_url; 
   }
 };
 

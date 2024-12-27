@@ -5,68 +5,164 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Artisan;
-use Spatie\Backup\Tasks\Backup\BackupJobFactory;
+use ZipArchive;
 
 class BackupController extends Controller
 {
     public function createBackup()
     {
         try {
-            // Run the backup command
-            Artisan::call('backup:run');
-            return response()->json(['message' => 'Backup created successfully!'], 200);
+            $backupFileName = 'backup_' . now()->format('Y_m_d_H_i_s') . '.zip';
+            $backupFilePath = storage_path('app/backups/' . $backupFileName);
+            
+            $zip = new ZipArchive();
+
+            if ($zip->open($backupFilePath, ZipArchive::CREATE) !== TRUE) {
+                return response()->json(['message' => 'Failed to create ZIP file.'], 500);
+            }
+
+            \Artisan::call('backup:run');
+            
+            $zip->addFile(base_path('.env'), '.env');
+            
+            $files = Storage::allFiles('public');
+            foreach ($files as $file) {
+                $zip->addFile(storage_path('app/' . $file), 'public/' . $file); 
+            }
+
+            $publicStoragePath = public_path('storage');
+            if (is_dir($publicStoragePath)) {
+                $this->addFolderToZip($zip, $publicStoragePath, 'storage');
+            }
+
+            $zip->close();
+
+            return response()->json([
+                'message' => 'Backup created successfully.',
+                'backup_file' => $backupFileName,
+                'backup_path' => storage_path('app/backups/' . $backupFileName)
+            ], 200);
+
         } catch (\Exception $e) {
-            // Log and return the error
-            \Log::error('Backup error: ' . $e->getMessage());
-            return response()->json(['error' => 'Failed to create backup.'], 500);
+            return response()->json(['message' => 'Backup failed: ' . $e->getMessage()], 500);
         }
     }
 
+    private function addFolderToZip($zip, $folderPath, $zipFolderName)
+    {
+        $files = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($folderPath),
+            \RecursiveIteratorIterator::LEAVES_ONLY
+        );
+
+        foreach ($files as $file) {
+            if (!$file->isDir()) {
+                $filePath = $file->getRealPath();
+                $relativePath = substr($filePath, strlen($folderPath) + 1);
+                $zip->addFile($filePath, $zipFolderName . '/' . $relativePath);
+            }
+        }
+    }
+
+    public function restoreBackup(Request $request)
+    {
+        $backupFile = $request->file('backup_file');
+    
+        if (!$backupFile) {
+            return response()->json(['message' => 'No backup file selected.'], 400);
+        }
+    
+        try {
+            $zip = new ZipArchive();
+            $backupPath = $backupFile->getRealPath();
+    
+            if ($zip->open($backupPath) !== true) {
+                return response()->json(['message' => 'Failed to open backup file.'], 500);
+            }
+    
+            // Define the extraction path
+            $extractPath = storage_path('app/backups/extracted');
+    
+            // Ensure the directory exists
+            if (!is_dir($extractPath)) {
+                mkdir($extractPath, 0777, true);
+            }
+    
+            // Extract files selectively or entirely
+            for ($i = 0; $i < $zip->numFiles; $i++) {
+                $fileName = $zip->getNameIndex($i);
+    
+                // Skip unnecessary files or large files if not needed
+                if ($this->shouldExtractFile($fileName)) {
+                    $zip->extractTo($extractPath, $fileName);
+                }
+            }
+    
+            $zip->close();
+    
+            return response()->json([
+                'message' => 'Backup restored successfully.',
+                'extracted_path' => $extractPath,
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Restore failed: ' . $e->getMessage()], 500);
+        }
+    }
+    
+    private function shouldExtractFile(string $fileName): bool
+    {
+        // Example: Skip logs or temporary files
+        $excludedExtensions = ['.log', '.tmp'];
+        foreach ($excludedExtensions as $ext) {
+            if (str_ends_with($fileName, $ext)) {
+                return false;
+            }
+        }
+        return true;
+    }
+    
     public function listBackups()
-{
-    $files = collect(Storage::disk('backups')->files())
-        ->filter(fn($file) => pathinfo($file, PATHINFO_EXTENSION) === 'sql')
-        ->values()
-        ->all();
+    {
+        $backupFolder = storage_path('app/backups');
+        
+        $backups = [];
 
-    return response()->json($files);
-}
-
-public function restoreBackup(Request $request)
-{
-    $request->validate(['filename' => 'required|string']);
-    $filename = $request->input('filename');
-    $backupPath = storage_path("app/backups/{$filename}");
-
-    if (!file_exists($backupPath)) {
-        return response()->json(['error' => 'Backup file not found.'], 404);
-    }
-
-    if (pathinfo($backupPath, PATHINFO_EXTENSION) !== 'sql') {
-        return response()->json(['error' => 'Invalid backup file format.'], 400);
-    }
-
-    try {
-        $dbHost = config('database.connections.mysql.host');
-        $dbName = config('database.connections.mysql.database');
-        $dbUser = config('database.connections.mysql.username');
-        $dbPass = config('database.connections.mysql.password');
-
-        $command = "mysql -h {$dbHost} -u {$dbUser} --password='{$dbPass}' {$dbName} < {$backupPath}";
-        exec($command, $output, $resultCode);
-
-        if ($resultCode !== 0) {
-            throw new Exception('Restore process failed.');
+        if (is_dir($backupFolder)) {
+            $backups = array_diff(scandir($backupFolder), ['.', '..']); 
         }
 
-        Log::info("Backup restored successfully: {$filename} by user ID: " . auth()->id());
+        return response()->json(['backups' => $backups]);
+    }
 
-        return response()->json(['message' => 'Backup restored successfully.']);
-    } catch (Exception $e) {
-        Log::error("Backup restore failed: {$filename}. Error: " . $e->getMessage());
-        return response()->json(['error' => 'Restore failed.'], 500);
+    public function deleteBackup($filename)
+    {
+        $backupPath = storage_path('app/backups/' . $filename);
+
+        if (!file_exists($backupPath)) {
+            return response()->json(['message' => 'Backup file not found.'], 404);
+        }
+
+        try {
+            unlink($backupPath); 
+            return response()->json(['message' => 'Backup file deleted successfully.'], 200);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to delete backup file: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function downloadBackup($backupFileName)
+    {
+        $backupPath = storage_path('app/backups/' . $backupFileName);
+    
+        if (!file_exists($backupPath)) {
+            return response()->json(['message' => 'Backup file not found.'], 404);
+        }
+    
+        $headers = [
+            'Content-Type' => 'application/zip',
+            'Content-Disposition' => 'attachment; filename="' . basename($backupPath) . '"',
+        ];
+    
+        return response()->download($backupPath, $backupFileName, $headers);
     }
 }
-
-}
-

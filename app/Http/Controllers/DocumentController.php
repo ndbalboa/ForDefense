@@ -9,6 +9,7 @@ use App\Models\DocumentType;
 use App\Models\Department;
 use GuzzleHttp\Client;
 use Illuminate\Http\Request;
+use setasign\Fpdi\Fpdi;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\JsonResponse;
@@ -18,7 +19,6 @@ use Illuminate\Support\Facades\DB;
 
 class DocumentController extends Controller
 {
-    // Upload and validate the document
     public function upload(Request $request)
     {
         $request->validate([
@@ -59,43 +59,36 @@ class DocumentController extends Controller
         }
     }
     
-    // Save the document and handle employee associations (both registered and unregistered)
     public function save(Request $request)
     {
         $validatedData = $request->validate([
             'document_no' => 'nullable|string',
             'series_no' => 'nullable|string',
             'date_issued' => 'nullable|date',
-            'from_date' => 'nullable|string',
-            'to_date' => 'nullable|string',
+            'inclusive_date' => 'nullable|string',
+            'sender' => 'nullable|string',
             'subject' => 'nullable|string',
             'venue' => 'nullable|string',
             'destination' => 'nullable|string',
             'description' => 'nullable|string',
-            'document_type' => 'required|string', // Document type as a string
+            'document_type' => 'required|string',
             'file_path' => 'required|string',
-            'employee_names' => 'nullable|array', // Employee names as an array
+            'employee_names' => 'nullable|array', 
         ]);
     
         try {
-            // Retrieve the document type based on the string passed
             $documentType = DocumentType::where('document_type', $validatedData['document_type'])->first();
     
-            // If the document type doesn't exist, return an error
             if (!$documentType) {
                 return response()->json(['error' => 'Invalid document type.'], 400);
             }
     
-            // Merge the document_type_id into the validated data
             $validatedData['document_type_id'] = $documentType->id;
     
-            // Save or update the document
             $document = Document::updateOrCreate(
                 ['document_no' => $validatedData['document_no']],
-                $validatedData // This now includes the document_type_id
+                $validatedData
             );
-    
-            // Save employee names directly in the document's employee_names field
             if ($request->has('employee_names')) {
                 $document->employee_names = $validatedData['employee_names'];
                 $document->save();
@@ -141,10 +134,8 @@ class DocumentController extends Controller
     // Fetch documents by employee ID
     public function getDocumentsByEmployee(Employee $employee)
     {
-        // Concatenate the employee's first and last name
         $employeeFullName = $employee->firstName . ' ' . $employee->lastName;
 
-        // Fetch all documents that contain the employee's full name in the employee_names JSON field
         $documents = Document::whereJsonContains('employee_names', $employeeFullName)->get();
 
         if ($documents->isEmpty()) {
@@ -531,10 +522,12 @@ class DocumentController extends Controller
         $validatedData = $request->validate([
             'document_no' => 'string|nullable',
             'series_no' => 'string|nullable',
-            'from_date' => 'date|nullable',
-            'to_date' => 'date|nullable',
+            'inclusive_date' => 'date|nullable',
+            'sender' => 'date|nullable',
             'subject' => 'string|nullable',
             'description' => 'string|nullable',
+            'destination' => 'string|nullable',
+            'venue' => 'string|nullable',
             'date_issued' => 'date|nullable',
             'employee_names' => 'array|nullable',
         ]);
@@ -547,15 +540,23 @@ class DocumentController extends Controller
     {
         try {
             $document = Document::findOrFail($id);
+    
+            // Delete the associated file from storage if it exists
+            if ($document->file_path && \Storage::exists($document->file_path)) {
+                \Storage::delete($document->file_path);
+            }
+    
+            // Delete the document record from the database
             $document->delete();
-            
+    
             return response()->json(['message' => 'Document deleted successfully.'], 200);
         } catch (ModelNotFoundException $e) {
             return response()->json(['message' => 'Document not found.'], 404);
         } catch (\Exception $e) {
-            return response()->json(['message' => 'Failed to delete document.'], 500);
+            return response()->json(['message' => 'Failed to delete document. ' . $e->getMessage()], 500);
         }
     }
+    
 //for department
 public function getDocumentsByLoggedInDepartment()
 {
@@ -621,15 +622,47 @@ public function getDocumentsByDepartment($departmentId)
     ]);
 }
 
-
-/**
- * Get all departments.
- */
 public function getDepartments()
 {
     $departments = Department::all();
     return response()->json($departments);
 }
+
+public function downloadWatermarked($id)
+{
+    $document = Document::findOrFail($id);
+
+    $filePath = $document->file_path;
+    $fullPath = Storage::path($filePath);
+
+    if (!file_exists($fullPath)) {
+        return response()->json(['error' => 'File not found'], 404);
+    }
+
+    $outputPath = storage_path('app/temp/watermarked-' . basename($filePath));
+
+    $pdf = new Fpdi();
+    $pageCount = $pdf->setSourceFile($fullPath);
+
+    for ($i = 1; $i <= $pageCount; $i++) {
+        $templateId = $pdf->importPage($i);
+        $size = $pdf->getTemplateSize($templateId);
+
+        $pdf->AddPage($size['orientation'], [$size['width'], $size['height']]);
+        $pdf->useTemplate($templateId);
+
+        $pdf->SetFont('Helvetica', 'B', 50);
+        $pdf->SetTextColor(255, 0, 0);
+        $pdf->SetXY(30, 50);
+        $pdf->Cell(0, 0, 'CONFIDENTIAL', 0, 0, 'C');
+    }
+
+    $pdf->Output($outputPath, 'F');
+
+    return response()->download($outputPath)->deleteFileAfterSend(true);
+}
+
+
 
 
     

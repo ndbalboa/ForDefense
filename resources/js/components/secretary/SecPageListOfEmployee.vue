@@ -67,13 +67,13 @@
           v-for="employee in filteredEmployees"
           :key="employee.id"
           @click="viewEmployee(employee.id)"
-          class="clickable-row"
+          class="clickable-col"
         >
           <td>{{ employee.id }}</td>
           <td>{{ employee.lastName }}</td>
           <td>{{ employee.firstName }}</td>
           <td>{{ employee.emailAddress }}</td>
-          <td>
+          <td :class="{'active-status': employee.user?.status === 'active'}">
             {{ employee.user?.status === 'active' ? 'Active' : 'Inactive' }}
           </td>
         </tr>
@@ -95,7 +95,6 @@ export default {
     const totalPages = ref(1);
     const router = useRouter();
 
-    // Function to fetch employees from the API
     const fetchEmployees = (page = 1) => {
       if (page < 1 || page > totalPages.value) return;
 
@@ -112,7 +111,6 @@ export default {
         });
     };
 
-    // Computed property to filter employees based on search query
     const filteredEmployees = computed(() => {
       const query = searchQuery.value.toLowerCase();
       return employees.value.filter((employee) => {
@@ -126,12 +124,10 @@ export default {
       });
     });
 
-    // Navigate to employee details and their associated documents
     const viewEmployee = (id) => {
       router.push({ name: "SecPageEmployeeDetails", params: { id } });
     };
 
-    // Fetch employees on component mount
     onMounted(() => {
       fetchEmployees();
     });
@@ -150,14 +146,21 @@ export default {
 </script>
 
 <style scoped>
-.clickable-row {
+.clickable-col {
   cursor: pointer;
 }
+
 .input-group {
   width: 300px;
 }
-th {
-  background-color: navy; /* Navy blue background */
+
+thead th {
+  background-color: navy; 
   color: white;
 }
+
+td:hover {
+  background-color: #d3d3d3;
+}
+
 </style>

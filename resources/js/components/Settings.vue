@@ -1,184 +1,232 @@
 <template>
-  <div class="backup">
-    <h1>Backup & Restore</h1>
-    <p class="settings-header">Manage your database backups and restores efficiently.</p>
+  <div>
+    <h1>Backup and Restore</h1>
+    <div class="backup-restore-container">
+      <div class="backup-section">
+        <h3>Create Backup</h3>
+        <button @click="createBackup" :disabled="isBackingUp">
+          <i class="fa fa-database"></i> Create Backup
+        </button>
+      </div>
 
-    <button @click="createBackup" class="action-button create-backup">
-      <span class="icon">💾</span> Create Backup
-    </button>
+      <div class="restore-section">
+        <h3>Restore Backup</h3>
+        <input type="file" @change="handleFileUpload" />
+        <button @click="restoreBackup" :disabled="isRestoring || !backupFile">
+          <i class="fa fa-refresh"></i> Restore Backup
+        </button>
+      </div>
+    </div>
 
-    <h2>Available Backups</h2>
-    <ul class="backup-list">
-      <li v-for="backup in backups" :key="backup" class="backup-item">
-        <span>{{ backup }}</span>
-        <div class="button-group">
-          <button @click="restoreBackup(backup)" class="action-button restore-backup">
-            <span class="icon">🔄</span> Restore
-          </button>
-          <a :href="`/api/admin/download/${backup}`" class="action-button download-backup" download>
-            <span class="icon">⬇️</span> Download
-          </a>
-        </div>
-      </li>
-    </ul>
-    <!-- Restore button always visible -->
-    <button @click="restoreBackup(null)" class="action-button restore-backup" v-if="!backups.length">
-      <span class="icon">🔄</span> Restore Default Data
-    </button>
+    <div>
+      <h3>Backup Files</h3>
+      <table class="backup-table">
+        <thead>
+          <tr>
+            <th>Backup File Name</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="backup in backups" :key="backup">
+            <td>{{ backup }}</td>
+            <td>
+              <button @click="downloadBackup(backup)">
+                <i class="fa fa-download"></i> Download
+              </button>
+              <button @click="deleteBackup(backup)">
+                <i class="fa fa-trash"></i> Delete
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div v-if="message" :class="messageClass">
+      {{ message }}
+    </div>
   </div>
 </template>
 
 <script>
-import axios from 'axios';
-
 export default {
   data() {
     return {
-      backups: [],
+      isBackingUp: false,
+      isRestoring: false,
+      backupFile: null,
+      message: '',
+      messageClass: '',
+      backups: [] 
     };
   },
+  created() {
+    this.getBackups();
+  },
   methods: {
-    fetchBackups() {
-      axios.get('/api/admin/backups').then((response) => {
-        this.backups = response.data;
-      });
-    },
     createBackup() {
-      axios.get('/api/admin/backup', { responseType: 'blob' }).then((response) => {
-        // Automatically download the file after creation
-        const blob = new Blob([response.data], { type: 'application/octet-stream' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'backup.zip'; // Customize the file name if needed
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
-        alert('Backup created and downloaded successfully!');
-        this.fetchBackups();
-      }).catch(() => {
-        alert('Failed to create backup.');
-      });
+      this.isBackingUp = true;
+      this.message = 'Creating backup...';
+      this.messageClass = 'alert-info';
+
+      axios.post('/api/admin/backup/create')
+        .then(response => {
+          this.message = response.data.message;
+          this.messageClass = 'alert-success';
+          this.getBackups(); 
+        })
+        .catch(error => {
+          this.message = error.response.data.message;
+          this.messageClass = 'alert-danger';
+        })
+        .finally(() => {
+          this.isBackingUp = false;
+        });
     },
-    restoreBackup(backup) {
-      if (backup === null) {
-        alert('Restoring default data.');
-        // Implement the logic to restore default data here, if needed.
-      } else {
-        axios
-          .post('/api/admin/restore', { filename: backup })
-          .then(() => alert('Backup restored successfully!'))
-          .catch(() => alert('Failed to restore backup.'));
+
+    handleFileUpload(event) {
+      this.backupFile = event.target.files[0];
+    },
+
+    restoreBackup() {
+      if (!this.backupFile) {
+        this.message = 'Please select a backup file.';
+        this.messageClass = 'alert-warning';
+        return;
       }
+
+      this.isRestoring = true;
+      const formData = new FormData();
+      formData.append('backup_file', this.backupFile);
+
+      this.message = 'Restoring backup...';
+      this.messageClass = 'alert-info';
+
+      axios.post('/api/admin/backup/restore', formData)
+        .then(response => {
+          this.message = response.data.message;
+          this.messageClass = 'alert-success';
+        })
+        .catch(error => {
+          this.message = error.response.data.message;
+          this.messageClass = 'alert-danger';
+        })
+        .finally(() => {
+          this.isRestoring = false;
+        });
     },
-  },
-  mounted() {
-    this.fetchBackups();
-  },
+
+    getBackups() {
+      axios.get('/api/admin/backup/list')
+        .then(response => {
+          this.backups = response.data.backups;
+        })
+        .catch(error => {
+          this.message = 'Failed to load backups.';
+          this.messageClass = 'alert-danger';
+        });
+    },
+
+    downloadBackup(backup) {
+      axios.get(`/api/admin/backup/download/${backup}`)
+        .then(response => {
+          const url = window.URL.createObjectURL(new Blob([response.data]));
+          const link = document.createElement('a');
+          link.href = url;
+          link.setAttribute('download', backup); 
+          document.body.appendChild(link);
+          link.click();
+        })
+        .catch(error => {
+          this.message = 'Failed to download backup.';
+          this.messageClass = 'alert-danger';
+        });
+    },
+
+    deleteBackup(backup) {
+      if (confirm(`Are you sure you want to delete the backup: ${backup}?`)) {
+        axios.delete(`/api/admin/backup/delete/${backup}`)
+          .then(response => {
+            this.message = response.data.message;
+            this.messageClass = 'alert-success';
+            this.getBackups(); 
+          })
+          .catch(error => {
+            this.message = 'Failed to delete backup.';
+            this.messageClass = 'alert-danger';
+          });
+      }
+    }
+  }
 };
 </script>
 
-<style>
-.backup {
-  max-width: 600px;
-  margin: 20px auto;
-  padding: 20px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  background-color: #f9f9f9;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+<style scoped>
+.alert-info {
+  color: blue;
+}
+.alert-success {
+  color: green;
+}
+.alert-danger {
+  color: red;
+}
+.alert-warning {
+  color: orange;
 }
 
-h1 {
-  text-align: center;
-  margin-bottom: 20px;
-  color: #333;
+button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
 }
 
-.settings-header {
-  text-align: center;
-  margin-bottom: 20px;
-  color: #555;
-  font-size: 16px;
-}
-
-h2 {
-  margin-top: 20px;
-  color: #555;
-}
-
-.action-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 10px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: bold;
-  color: #fff;
-  background-color: #28a745;
-  width: 100%;
-  margin-bottom: 10px;
-  transition: background-color 0.3s;
-}
-
-.action-button.create-backup {
-  background-color: #007bff;
-}
-
-.action-button.restore-backup {
-  background-color: #dc3545;
-}
-
-.action-button.download-backup {
-  background-color: #17a2b8;
-}
-
-.action-button:hover {
-  opacity: 0.8;
-}
-
-.icon {
-  margin-right: 8px;
-}
-
-.backup-list {
-  list-style: none;
-  padding: 0;
-}
-
-.backup-item {
+.backup-restore-container {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 15px;
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.backup-section,
+.restore-section {
+  flex: 1;
+}
+
+/* Table Styles */
+.backup-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+}
+
+.backup-table th,
+.backup-table td {
   padding: 10px;
-  border-bottom: 1px solid #ddd;
-  background-color: #fff;
-  border-radius: 4px;
+  text-align: left;
+  border: 1px solid #ddd;
 }
 
-.backup-item span {
-  font-size: 14px;
-  color: #333;
+.backup-table th {
+  background-color: navy;
+  color: white;
 }
 
-.button-group {
-  display: flex;
-  gap: 10px;
+.backup-table button {
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  padding: 5px 10px;
+  cursor: pointer;
+  margin-right: 10px; 
 }
 
-@media (max-width: 600px) {
-  .backup {
-    padding: 15px;
-  }
+.backup-table button:hover {
+  background-color: #45a049;
+}
 
-  .action-button {
-    width: 100%;
-    font-size: 12px;
-  }
+/* Icons */
+button i {
+  margin-right: 5px;
 }
 </style>

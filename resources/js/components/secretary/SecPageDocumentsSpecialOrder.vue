@@ -54,11 +54,13 @@
           <td>{{ document.subject }}</td>
           <td>
             <ul>
-              <li v-for="(name, index) in document.employee_names" :key="index">
+              <li v-for="(name, index) in document.employee_names.slice(0, 5)" :key="index">
                 {{ name }}
               </li>
+              <li v-if="document.employee_names.length > 5">...</li>
             </ul>
           </td>
+
         </tr>
       </tbody>
     </table>
@@ -71,17 +73,19 @@ import axios from "axios";
 export default {
   data() {
     return {
-      documents: [], // Full list of documents fetched from the server
-      searchQuery: "", // User's search query
-      currentPage: 1, // Current page for pagination
-      perPage: 5, // Number of results per page
+      documents: [], 
+      searchQuery: "",
+      currentPage: 1, 
+      perPage: 5, 
     };
   },
   computed: {
-    // Filter documents based on the search query
+    sortedDocuments() {
+      return [...this.documents].sort((a, b) => new Date(b.date_issued) - new Date(a.date_issued));
+    },
     filteredDocuments() {
       const query = this.searchQuery.toLowerCase();
-      return this.documents.filter(
+      return this.sortedDocuments.filter(
         (document) =>
           document.document_no?.toLowerCase().includes(query) ||
           document.subject?.toLowerCase().includes(query) ||
@@ -90,17 +94,14 @@ export default {
           )
       );
     },
-    // Get paginated documents based on the current page
     paginatedDocuments() {
       const start = (this.currentPage - 1) * this.perPage;
       const end = start + this.perPage;
       return this.filteredDocuments.slice(start, end);
     },
-    // Calculate total number of pages
     totalPages() {
       return Math.ceil(this.filteredDocuments.length / this.perPage);
     },
-    // Dynamic pagination logic for displaying ellipses
     visiblePages() {
       const total = this.totalPages;
       const current = this.currentPage;
@@ -117,10 +118,9 @@ export default {
     },
   },
   mounted() {
-    this.fetchDocuments(2); // Fetch documents where document_type_id = 1 (Travel Order)
+    this.fetchDocuments(2);
   },
   methods: {
-    // Fetch documents from the API
     async fetchDocuments(documentTypeId) {
       try {
         const response = await axios.get(`/api/admin/list/documents/${documentTypeId}`);
@@ -129,25 +129,21 @@ export default {
         console.error("Error fetching documents:", error);
       }
     },
-    // Set the page to the selected value
     setPage(page) {
       if (page !== "...") {
         this.currentPage = page;
       }
     },
-    // Go to the next page
     nextPage() {
       if (this.currentPage < this.totalPages) {
         this.currentPage++;
       }
     },
-    // Go to the previous page
     prevPage() {
       if (this.currentPage > 1) {
         this.currentPage--;
       }
     },
-    // Redirect to the document details page
     viewDocument(documentId) {
       this.$router.push(`/secretary-dashboard/documents/${documentId}`);
     }
@@ -155,8 +151,8 @@ export default {
 };
 </script>
 
+
 <style scoped>
-/* Adjust table styling */
 table {
   margin-top: 15px;
   width: 100%;
@@ -250,6 +246,105 @@ th {
 }
 
 /* Style clickable rows */
+.clickable-row {
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.clickable-row:hover {
+  background-color: #f0f0f0;
+}
+</style>
+
+
+<style scoped>
+table {
+  margin-top: 15px;
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 10px;
+  border: 1px solid #ddd;
+  text-align: left;
+}
+
+th {
+  background-color: navy; 
+  color: white;
+}
+
+.search-and-top-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.search-bar-container {
+  align-self: flex-end;
+  position: relative;
+  width: 300px;
+}
+
+.search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #888;
+}
+
+.search-bar {
+  width: 100%;
+  padding: 8px 12px 8px 30px; 
+  font-size: 14px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.results-counter {
+  font-size: 14px;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.pagination button {
+  padding: 8px 12px;
+  background-color: #f4f4f4;
+  color: #333;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  min-width: 36px;
+}
+
+.pagination button.active {
+  background-color: #007bff;
+  color: white;
+}
+
+.pagination button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.pagination span {
+  padding: 8px 12px;
+  color: #888;
+}
+
 .clickable-row {
   cursor: pointer;
   transition: background-color 0.2s ease;

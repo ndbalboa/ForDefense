@@ -29,21 +29,18 @@ class Employee extends Model
         'academicRank',
         'universityPosition',
         'profileImage',
-        // Permanent Address
         'permanent_street',
         'permanent_barangay',
         'permanent_city',
         'permanent_province',
         'permanent_country',
         'permanent_zipcode',
-        // Residential Address
         'residential_street',
         'residential_barangay',
         'residential_city',
         'residential_province',
         'residential_country',
         'residential_zipcode',
-
         'department',
     ];
 
